@@ -1,0 +1,21 @@
+{
+  "name": "@haldir/cli",
+  "version": "0.1.0",
+  "description": "Haldir CLI — keygen, sign, verify, inspect, revoke",
+  "type": "module",
+  "bin": {
+    "haldir": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@haldir/core": "workspace:*",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
+  }
+}

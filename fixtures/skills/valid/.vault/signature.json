@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "payloadType": "application/vnd.haldir.attestation+json",
+  "payload": "eyJpbnRlZ3JpdHlfaGFzaCI6InNoYTI1Njo3MzVmMjlmNGNjNzgwYWYzMWJiZmI2MjUzZTY4Y2EyZDIxMzc3MjhiNjFhNjhhZmFlNTEzNWUyN2Y3NjgwZGUzIiwicGVybWlzc2lvbnNfaGFzaCI6InNoYTI1Njo4MmNlZDQzY2EzMGRkMmQ2MTA5YzgxZjUxYmRjZDY1NDU1YzRjMmE0MWE3Y2RiYzc1MTIzMjlkNDlmNWYxMmNlIiwic2NoZW1hX3ZlcnNpb24iOiIxLjAiLCJzaWduZWRfYXQiOiIyMDI2LTAyLTA4VDExOjIzOjE4Ljg4N1oiLCJza2lsbCI6eyJuYW1lIjoicXVvdGUtZ2VuZXJhdG9yIiwidHlwZSI6InNraWxsLm1kIiwidmVyc2lvbiI6IjEuMC4wIn19",
+  "signatures": [
+    {
+      "keyid": "8d870ecbce642c311b4e3c089a49dea0",
+      "sig": "Lmbem_nOaRUN2alS0IMqwxJlgeRHS5BQ3LH3jti2e7RleDFtM--xuh-ezt7M7rnak2ZhVKhbToimI_EOWR5KDA"
+    }
+  ]
+}

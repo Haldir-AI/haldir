@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "declared": {
+    "filesystem": {
+      "read": [],
+      "write": []
+    },
+    "network": "none",
+    "exec": [],
+    "agent_capabilities": {
+      "memory_read": false,
+      "memory_write": false,
+      "spawn_agents": false,
+      "modify_system_prompt": false
+    }
+  }
+}

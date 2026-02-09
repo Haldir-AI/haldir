@@ -1,0 +1,27 @@
+{
+  "name": "haldir",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-agnostic secure agent skills registry",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "npx vitest run",
+    "test:watch": "npx vitest",
+    "lint": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/sdk/tsconfig.json",
+    "schemas": "tsx scripts/generate-schemas.ts",
+    "clean": "pnpm -r exec rm -rf dist"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "tsx": "^4.7.0",
+    "zod-to-json-schema": "^3.22.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
