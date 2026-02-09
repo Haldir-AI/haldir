@@ -1,0 +1,13 @@
+# GitGuardian configuration for Haldir
+# Exclude test fixtures from secret scanning
+
+version: 2
+
+paths-ignore:
+  - fixtures/keys/**  # Test keypairs for test suite only
+  - "**/*.test.ts"    # Test files may contain example keys
+
+# Allow Ed25519 keys in fixtures (test keys only)
+ignored-detectors:
+  - name: Generic Private Key
+    match: fixtures/keys/test.key
