@@ -4,4 +4,6 @@ dist/
 .DS_Store
 haldir.key
 haldir.pub
+haldir.keyid
 *.pem
+.keys/

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { RegistryStore } from './types.js';
 import type {
   Publisher,
@@ -34,8 +35,15 @@ export class MemoryStore implements RegistryStore {
   }
 
   async getPublisherByApiKey(apiKeyHash: string): Promise<Publisher | null> {
+    // Use timing-safe comparison to prevent timing attacks on API key hashes
+    const inputBuf = Buffer.from(apiKeyHash, 'utf8');
+
     for (const p of this.publishers.values()) {
-      if (p.apiKeyHash === apiKeyHash) return p;
+      const storedBuf = Buffer.from(p.apiKeyHash, 'utf8');
+      // timingSafeEqual requires equal-length buffers, SHA-256 hex is always 64 chars
+      if (inputBuf.length === storedBuf.length && timingSafeEqual(inputBuf, storedBuf)) {
+        return p;
+      }
     }
     return null;
   }

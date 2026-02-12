@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { platform } from 'node:os';
 import type { ProcessOutput, SandboxConfig, SandboxViolation } from './types.js';
 import { DEFAULT_TIMEOUT, DEFAULT_MAX_MEMORY } from './types.js';
 
@@ -16,10 +15,20 @@ export async function runInSandbox(
   const timeout = config.timeout ?? DEFAULT_TIMEOUT;
   const maxMemory = config.maxMemory ?? DEFAULT_MAX_MEMORY;
 
+  const baseEnv = safeEnv();
+  const userEnv = config.env ?? {};
+
+  // Merge NODE_OPTIONS instead of overwriting
+  const existingNodeOpts = userEnv.NODE_OPTIONS || baseEnv.NODE_OPTIONS || '';
+  const memoryOpt = `--max-old-space-size=${maxMemory}`;
+  const mergedNodeOpts = existingNodeOpts
+    ? `${existingNodeOpts} ${memoryOpt}`
+    : memoryOpt;
+
   const env: Record<string, string> = {
-    ...safeEnv(),
-    ...(config.env ?? {}),
-    NODE_OPTIONS: `--max-old-space-size=${maxMemory}`,
+    ...baseEnv,
+    ...userEnv,
+    NODE_OPTIONS: mergedNodeOpts,
   };
 
   return new Promise<RunResult>((resolve) => {
@@ -113,10 +122,14 @@ export async function runInSandbox(
 
 function safeEnv(): Record<string, string> {
   const safe: Record<string, string> = {};
-  const allow = ['PATH', 'HOME', 'USER', 'LANG', 'TERM', 'NODE_PATH', 'PYTHONPATH'];
+  // Security: PATH intentionally excluded to prevent binary substitution attacks
+  // If needed, callers can provide explicit PATH via config.env
+  const allow = ['HOME', 'USER', 'LANG', 'TERM', 'NODE_PATH', 'PYTHONPATH'];
   for (const key of allow) {
     if (process.env[key]) safe[key] = process.env[key]!;
   }
+  // Always set a minimal PATH to system locations only
+  safe.PATH = '/usr/bin:/bin:/usr/local/bin';
   return safe;
 }
 

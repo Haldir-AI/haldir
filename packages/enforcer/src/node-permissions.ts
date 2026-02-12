@@ -35,8 +35,15 @@ export function buildNodePermissionArgs(
     nodeArgs.push('--allow-child-process');
   }
 
-  const nodeOptions = nodeArgs.join(' ');
-  const enforcedEnv = { ...env, NODE_OPTIONS: nodeOptions };
+  const permissionFlags = nodeArgs.join(' ');
+
+  // Merge with existing NODE_OPTIONS instead of overwriting
+  const existingOpts = env.NODE_OPTIONS || '';
+  const mergedNodeOptions = existingOpts
+    ? `${existingOpts} ${permissionFlags}`
+    : permissionFlags;
+
+  const enforcedEnv = { ...env, NODE_OPTIONS: mergedNodeOptions };
 
   return {
     command,
@@ -45,7 +52,7 @@ export function buildNodePermissionArgs(
     backend: 'node-permissions',
     enforced: {
       filesystem: true,
-      network: false,
+      network: false, // Node.js --experimental-permission doesn't support network enforcement yet
       exec: true,
     },
   };
