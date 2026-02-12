@@ -297,7 +297,7 @@ describe('Registry Server', () => {
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('approved');
       expect(res.body.publisher).toBeDefined();
-      expect(res.body.publisher.displayName).toBe('Test Publisher');
+      expect((res.body.publisher as Record<string, unknown>).displayName).toBe('Test Publisher');
     });
 
     it('GET /v1/federation/verify/:name/:version returns 404 for unknown', async () => {
