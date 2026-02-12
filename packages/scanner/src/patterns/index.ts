@@ -5,6 +5,7 @@ import { promptInjectionPatterns } from './prompt-injection.js';
 import { persistencePatterns } from './persistence.js';
 import { campaignPatterns } from './campaign.js';
 import { credentialPatterns } from './credentials.js';
+import { obfuscationPatterns } from './obfuscation.js';
 import type { ThreatPattern } from './types.js';
 
 export const PATTERN_DB: readonly ThreatPattern[] = Object.freeze([
@@ -15,4 +16,5 @@ export const PATTERN_DB: readonly ThreatPattern[] = Object.freeze([
   ...persistencePatterns,
   ...campaignPatterns,
   ...credentialPatterns,
+  ...obfuscationPatterns,
 ]);
