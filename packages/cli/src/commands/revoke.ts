@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { createRevocationList, deriveKeyId } from '@haldir/core';
+import { createRevocationList, deriveKeyId, RevocationListSchema } from '@haldir/core';
 import type { RevocationEntry, SignedRevocationList } from '@haldir/core';
 
 interface RevokeOptions {
@@ -22,7 +22,13 @@ export async function revokeCommand(nameAtVersion: string, opts: RevokeOptions):
   let existing: SignedRevocationList | undefined;
   try {
     const raw = await readFile(opts.list, 'utf-8');
-    existing = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const validated = RevocationListSchema.safeParse(parsed);
+    if (!validated.success) {
+      console.error(`Warning: existing revocation list is malformed, starting fresh`);
+    } else {
+      existing = validated.data as SignedRevocationList;
+    }
   } catch {
     // new list
   }

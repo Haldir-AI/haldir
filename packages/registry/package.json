@@ -1,0 +1,53 @@
+{
+  "name": "@haldir/registry",
+  "version": "0.1.0",
+  "description": "Haldir registry API — skill submission, vetting, publisher tiers, federation",
+  "license": "Apache-2.0",
+  "author": "Haldir AI <oss@haldir.ai>",
+  "homepage": "https://haldir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haldir-ai/haldir.git",
+    "directory": "packages/registry"
+  },
+  "keywords": ["haldir", "registry", "agent", "security", "skills", "api"],
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@haldir/pipeline": "workspace:*",
+    "@haldir/core": "workspace:*",
+    "express": "^5.0.1",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

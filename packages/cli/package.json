@@ -1,17 +1,34 @@
 {
   "name": "@haldir/cli",
   "version": "0.1.0",
-  "description": "Haldir CLI — keygen, sign, verify, inspect, revoke",
+  "description": "Haldir CLI — keygen, sign, verify, inspect, cosign, revoke, scan, audit, sandbox, review, enforce",
+  "license": "Apache-2.0",
+  "author": "Haldir AI <oss@haldir.ai>",
+  "homepage": "https://haldir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haldir-ai/haldir.git",
+    "directory": "packages/cli"
+  },
+  "keywords": ["haldir", "cli", "agent", "security", "signing", "verification", "skills"],
   "type": "module",
   "bin": {
     "haldir": "./dist/index.js"
   },
   "files": ["dist"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "build": "tsup"
   },
   "dependencies": {
     "@haldir/core": "workspace:*",
+    "@haldir/auditor": "workspace:*",
+    "@haldir/reviewer": "workspace:*",
+    "@haldir/sandbox": "workspace:*",
+    "@haldir/scanner": "workspace:*",
+    "@haldir/enforcer": "workspace:*",
     "commander": "^13.0.0"
   },
   "devDependencies": {

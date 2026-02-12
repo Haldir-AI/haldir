@@ -193,6 +193,41 @@ export interface EnvelopeOptions {
   permissions?: Permissions['declared'];
 }
 
+export interface KeylessEnvelopeOptions {
+  skill: {
+    name: string;
+    version: string;
+    type: string;
+  };
+  permissions?: Permissions['declared'];
+  identityToken?: string;
+  fulcioURL?: string;
+  rekorURL?: string;
+}
+
+// --- Sigstore Types ---
+
+export interface SigstoreVerifyOptions {
+  trustedIdentities?: TrustedIdentity[];
+  revocationKeys?: KeyRing;
+  revocationList?: SignedRevocationList;
+  lastValidRevocationList?: SignedRevocationList;
+  cachedSequenceNumber?: number;
+  context: 'install' | 'runtime';
+  skipHardlinkCheck?: boolean;
+}
+
+export interface TrustedIdentity {
+  issuer: string;
+  subject: string;
+}
+
+export interface SigstoreVerifyResult extends VerifyResult {
+  signerIdentity?: string;
+  signerIssuer?: string;
+  transparencyLogId?: string;
+}
+
 // --- Filesystem Types ---
 
 export interface WalkOptions {

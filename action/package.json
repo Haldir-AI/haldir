@@ -1,0 +1,19 @@
+{
+  "name": "@haldir/sign-action",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action to sign agent skills with Haldir",
+  "type": "module",
+  "scripts": {
+    "build": "ncc build src/main.ts -o dist --source-map --license licenses.txt"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@haldir/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vercel/ncc": "^0.38.1",
+    "typescript": "^5.7.0"
+  }
+}

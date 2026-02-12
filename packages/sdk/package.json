@@ -1,18 +1,36 @@
 {
   "name": "@haldir/sdk",
   "version": "0.1.0",
-  "description": "Haldir SDK — verification for agent platforms",
+  "description": "Haldir SDK — skill verification for agent platforms and runtimes",
+  "license": "Apache-2.0",
+  "author": "Haldir AI <oss@haldir.ai>",
+  "homepage": "https://haldir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haldir-ai/haldir.git",
+    "directory": "packages/sdk"
+  },
+  "keywords": ["haldir", "sdk", "agent", "security", "verification", "skills"],
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": ["dist"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

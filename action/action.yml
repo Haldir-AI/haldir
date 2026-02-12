@@ -1,0 +1,46 @@
+name: 'Haldir Sign'
+description: 'Sign agent skills with Haldir (.vault/ security envelope)'
+author: 'HydraCore'
+
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  skill-dir:
+    description: 'Path to skill directory to sign'
+    required: true
+  mode:
+    description: 'Signing mode: keyless (Sigstore OIDC) or key (Ed25519)'
+    required: false
+    default: 'keyless'
+  private-key:
+    description: 'Ed25519 private key PEM (required when mode=key)'
+    required: false
+  key-id:
+    description: 'Key identifier (required when mode=key)'
+    required: false
+  skill-name:
+    description: 'Skill name for attestation'
+    required: true
+  skill-version:
+    description: 'Skill version for attestation'
+    required: true
+  skill-type:
+    description: 'Skill type: skill.md or mcp'
+    required: false
+    default: 'skill.md'
+  cosign:
+    description: 'Co-sign an existing .vault/ instead of creating new'
+    required: false
+    default: 'false'
+
+outputs:
+  key-id:
+    description: 'Key ID or Sigstore identity that signed'
+  attestation-hash:
+    description: 'SHA-256 hash of the attestation'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

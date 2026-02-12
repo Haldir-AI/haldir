@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Framework-agnostic secure agent skills registry",
+  "license": "Apache-2.0",
+  "author": "Haldir AI <oss@haldir.ai>",
+  "homepage": "https://haldir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haldir-ai/haldir.git"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
@@ -10,14 +17,17 @@
     "build": "pnpm -r build",
     "test": "npx vitest run",
     "test:watch": "npx vitest",
-    "lint": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/sdk/tsconfig.json",
+    "test:e2e": "npx vitest run e2e",
+    "test:cli": "pnpm build && node packages/cli/dist/index.js test",
+    "lint": "pnpm -r exec tsc --noEmit",
     "schemas": "tsx scripts/generate-schemas.ts",
     "clean": "pnpm -r exec rm -rf dist"
   },
   "devDependencies": {
     "vitest": "^3.0.0",
     "tsx": "^4.7.0",
-    "zod-to-json-schema": "^3.22.4"
+    "zod-to-json-schema": "^3.22.4",
+    "rimraf": "^6.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

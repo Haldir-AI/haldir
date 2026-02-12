@@ -20,8 +20,16 @@ export {
   verifyIntegrity,
   checkFilesystem,
 } from './integrity.js';
-export { createEnvelope } from './envelope.js';
-export { verifyEnvelope } from './verify.js';
+export { createEnvelope, createKeylessEnvelope, appendSignature } from './envelope.js';
+export { verifyEnvelope, verifySigstoreEnvelope } from './verify.js';
+export {
+  signWithSigstore,
+  verifyWithSigstore,
+  hasSigstoreBundle,
+  readSigstoreBundle,
+  writeSigstoreBundle,
+  SIGSTORE_BUNDLE_FILE,
+} from './sigstore.js';
 export {
   createRevocationList,
   verifyRevocationList,

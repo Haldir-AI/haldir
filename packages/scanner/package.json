@@ -1,0 +1,48 @@
+{
+  "name": "@haldir/scanner",
+  "version": "0.1.0",
+  "description": "Haldir scanner — static analysis for agent skill threat detection (Layer 1)",
+  "license": "Apache-2.0",
+  "author": "Haldir AI <oss@haldir.ai>",
+  "homepage": "https://haldir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haldir-ai/haldir.git",
+    "directory": "packages/scanner"
+  },
+  "keywords": ["haldir", "scanner", "agent", "security", "static-analysis", "threat-detection", "skills"],
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

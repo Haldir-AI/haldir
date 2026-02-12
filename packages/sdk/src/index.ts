@@ -1,8 +1,16 @@
-import { verifyEnvelope } from '@haldir/core';
-import type { KeyRing, SignedRevocationList, VerifyResult } from '@haldir/core';
+import { verifyEnvelope, verifySigstoreEnvelope, hasSigstoreBundle } from '@haldir/core';
+import type {
+  KeyRing,
+  SignedRevocationList,
+  VerifyResult,
+  TrustedIdentity,
+  SigstoreVerifyResult,
+} from '@haldir/core';
 
 export interface HaldirOptions {
-  trustedKeys: KeyRing;
+  trustedKeys?: KeyRing;
+  trustedIdentities?: TrustedIdentity[];
+  revocationKeys?: KeyRing;
 }
 
 export interface HaldirVerifyOptions {
@@ -15,9 +23,13 @@ export interface HaldirVerifyOptions {
 
 export class Haldir {
   private trustedKeys: KeyRing;
+  private trustedIdentities?: TrustedIdentity[];
+  private revocationKeys?: KeyRing;
 
   constructor(options: HaldirOptions) {
-    this.trustedKeys = options.trustedKeys;
+    this.trustedKeys = options.trustedKeys ?? {};
+    this.trustedIdentities = options.trustedIdentities;
+    this.revocationKeys = options.revocationKeys;
   }
 
   async verify(skillDir: string, options: HaldirVerifyOptions): Promise<VerifyResult> {
@@ -30,6 +42,32 @@ export class Haldir {
       skipHardlinkCheck: options.skipHardlinkCheck,
     });
   }
+
+  async verifySigstore(skillDir: string, options: HaldirVerifyOptions): Promise<SigstoreVerifyResult> {
+    return verifySigstoreEnvelope(skillDir, {
+      trustedIdentities: this.trustedIdentities,
+      revocationKeys: this.revocationKeys,
+      revocationList: options.revocationList,
+      lastValidRevocationList: options.lastValidRevocationList,
+      cachedSequenceNumber: options.cachedSequenceNumber,
+      context: options.context,
+      skipHardlinkCheck: options.skipHardlinkCheck,
+    });
+  }
+
+  async autoVerify(skillDir: string, options: HaldirVerifyOptions): Promise<VerifyResult | SigstoreVerifyResult> {
+    const isSigstore = await hasSigstoreBundle(skillDir);
+    if (isSigstore) {
+      return this.verifySigstore(skillDir, options);
+    }
+    return this.verify(skillDir, options);
+  }
 }
 
-export type { KeyRing, SignedRevocationList, VerifyResult } from '@haldir/core';
+export type {
+  KeyRing,
+  SignedRevocationList,
+  VerifyResult,
+  TrustedIdentity,
+  SigstoreVerifyResult,
+} from '@haldir/core';

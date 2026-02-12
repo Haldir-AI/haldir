@@ -1,18 +1,36 @@
 {
   "name": "@haldir/core",
   "version": "0.1.0",
-  "description": "Haldir core — crypto, .vault/ envelope, verification",
+  "description": "Haldir core — Ed25519 signing, DSSE envelopes, .vault/ verification",
+  "license": "Apache-2.0",
+  "author": "Haldir AI <oss@haldir.ai>",
+  "homepage": "https://haldir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haldir-ai/haldir.git",
+    "directory": "packages/core"
+  },
+  "keywords": ["haldir", "agent", "security", "signing", "ed25519", "dsse", "skills", "verification"],
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": ["dist"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -20,6 +38,7 @@
   },
   "dependencies": {
     "canonicalize": "2.1.0",
+    "sigstore": "^4.1.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { verify as ed25519Verify, base64urlDecode, hashData, safeHashCompare, pa
 import { canonicalizeToBuffer } from './canonical.js';
 import { encodePAE } from './pae.js';
 import { checkFilesystem } from './integrity.js';
+import { hasSigstoreBundle, readSigstoreBundle, verifyWithSigstore } from './sigstore.js';
 import { SignatureEnvelopeSchema, AttestationSchema, IntegritySchema, PermissionsSchema } from './schemas.js';
 import {
   VAULT_DIR,
@@ -12,10 +13,21 @@ import {
   SUPPORTED_ATTESTATION_VERSIONS,
   SUPPORTED_INTEGRITY_VERSIONS,
 } from './types.js';
-import type { VerifyOptions, VerifyResult, VerifyError, VerifyWarning, Attestation, Permissions, TrustLevel } from './types.js';
+import type {
+  VerifyOptions,
+  VerifyResult,
+  VerifyError,
+  VerifyWarning,
+  Attestation,
+  Permissions,
+  TrustLevel,
+  SigstoreVerifyOptions,
+  SigstoreVerifyResult,
+} from './types.js';
 import { checkRevocationForInstall, checkRevocationForRuntime } from './revocation.js';
 
 const REQUIRED_VAULT_FILES = ['signature.json', 'attestation.json', 'integrity.json', 'permissions.json'];
+const REQUIRED_VAULT_FILES_SIGSTORE = ['sigstore-bundle.json', 'attestation.json', 'integrity.json', 'permissions.json'];
 
 const KNOWN_CRITICAL_FIELDS: string[] = [];
 
@@ -343,5 +355,261 @@ export async function verifyEnvelope(
     attestation,
     permissions,
     keyId: verifiedKeyId,
+  };
+}
+
+export async function verifySigstoreEnvelope(
+  skillDir: string,
+  options: SigstoreVerifyOptions
+): Promise<SigstoreVerifyResult> {
+  const warnings: VerifyWarning[] = [];
+
+  // Check 1: .vault/ exists
+  const vaultDir = join(skillDir, VAULT_DIR);
+  try {
+    await access(vaultDir);
+  } catch {
+    return sigstoreFail('E_NO_ENVELOPE', '.vault/ directory not found');
+  }
+
+  // Check 2: required files (sigstore-bundle.json instead of signature.json)
+  for (const f of REQUIRED_VAULT_FILES_SIGSTORE) {
+    try {
+      await access(join(vaultDir, f));
+    } catch {
+      return sigstoreFail('E_INCOMPLETE', `Missing required file: ${f}`);
+    }
+  }
+
+  // Checks 3-7: filesystem safety (same as Ed25519 path)
+  const skipHardlink = options.context === 'runtime' && options.skipHardlinkCheck === true;
+  const fsCheck = await checkFilesystem(skillDir, { skipHardlinkCheck: skipHardlink });
+
+  const symlinkErrors = fsCheck.errors.filter((e) => e.code === 'E_SYMLINK');
+  if (symlinkErrors.length > 0) {
+    return { valid: false, trustLevel: 'none', warnings: [], errors: symlinkErrors };
+  }
+
+  const hardlinkErrors = fsCheck.errors.filter((e) => e.code === 'E_HARDLINK');
+  if (hardlinkErrors.length > 0) {
+    return { valid: false, trustLevel: 'none', warnings: [], errors: hardlinkErrors };
+  }
+
+  const limitErrors = fsCheck.errors.filter((e) => e.code === 'E_LIMITS');
+  if (limitErrors.length > 0) {
+    return { valid: false, trustLevel: 'none', warnings: [], errors: limitErrors };
+  }
+
+  // Check 8-14 (Sigstore): read bundle + verify signature via Sigstore
+  const bundle = await readSigstoreBundle(skillDir);
+  if (!bundle) {
+    return sigstoreFail('E_INVALID_ENVELOPE', 'Could not read sigstore-bundle.json');
+  }
+
+  const attestationOnDisk = await readFile(join(vaultDir, 'attestation.json'));
+
+  // Verify the Sigstore bundle signature + transparency log (no identity constraints).
+  // Identity checking is done separately below to support multiple trusted identities.
+  let signerInfo;
+  try {
+    signerInfo = await verifyWithSigstore(bundle, attestationOnDisk, {
+      tlogThreshold: 1,
+      ctLogThreshold: 0,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return sigstoreFail('E_BAD_SIGNATURE', `Sigstore verification failed: ${msg}`);
+  }
+
+  // Identity check: trustedIdentities is required — fail-closed
+  if (!options.trustedIdentities?.length) {
+    return sigstoreFail(
+      'E_UNKNOWN_KEY',
+      'Sigstore verification requires at least one trusted identity'
+    );
+  }
+
+  if (signerInfo.identity === 'unknown' || signerInfo.issuer === 'unknown') {
+    return sigstoreFail(
+      'E_UNKNOWN_KEY',
+      `Could not extract signer identity from Sigstore bundle (identity=${signerInfo.identity}, issuer=${signerInfo.issuer})`
+    );
+  }
+
+  const identityMatched = options.trustedIdentities.some(
+    (ti) => signerInfo.identity === ti.subject && signerInfo.issuer === ti.issuer
+  );
+  if (!identityMatched) {
+    return sigstoreFail(
+      'E_UNKNOWN_KEY',
+      `Signer identity ${signerInfo.identity} (${signerInfo.issuer}) not in trusted identities`
+    );
+  }
+
+  // Check 15: parse attestation
+  let attestationParsed: unknown;
+  try {
+    attestationParsed = JSON.parse(attestationOnDisk.toString('utf-8'));
+  } catch {
+    return sigstoreFail('E_INVALID_ATTESTATION', 'Attestation payload is not valid JSON');
+  }
+
+  const attResult = AttestationSchema.safeParse(attestationParsed);
+  if (!attResult.success) {
+    return sigstoreFail('E_INVALID_ATTESTATION', `Attestation failed validation: ${attResult.error.message}`);
+  }
+  const attestation = attResult.data as Attestation;
+
+  // Check 16: attestation schema version
+  if (!(SUPPORTED_ATTESTATION_VERSIONS as readonly string[]).includes(attestation.schema_version)) {
+    return sigstoreFail('E_UNSUPPORTED_VERSION', `Unsupported attestation schema version: ${attestation.schema_version}`);
+  }
+
+  // Check 17: _critical fields
+  if (attestation._critical) {
+    for (const field of attestation._critical) {
+      if (!KNOWN_CRITICAL_FIELDS.includes(field)) {
+        return sigstoreFail('E_UNKNOWN_CRITICAL', `Unrecognized critical field: ${field}`);
+      }
+    }
+  }
+
+  // Check 18: integrity.json hash
+  const integrityRaw = await readFile(join(vaultDir, 'integrity.json'));
+  const integrityHash = hashData(integrityRaw);
+  const expectedHash = parseHashString(attestation.integrity_hash);
+  const actualHash = parseHashString(integrityHash);
+  if (!safeHashCompare(Buffer.from(expectedHash.hex, 'hex'), Buffer.from(actualHash.hex, 'hex'))) {
+    return sigstoreFail('E_INTEGRITY_MISMATCH', 'integrity.json hash mismatch');
+  }
+
+  // Check 19: parse integrity.json
+  let integrityParsed: unknown;
+  try {
+    integrityParsed = JSON.parse(integrityRaw.toString('utf-8'));
+  } catch {
+    return sigstoreFail('E_INVALID_INTEGRITY', 'integrity.json is not valid JSON');
+  }
+
+  const intResult = IntegritySchema.safeParse(integrityParsed);
+  if (!intResult.success) {
+    return sigstoreFail('E_INVALID_INTEGRITY', `Integrity manifest failed validation: ${intResult.error.message}`);
+  }
+  const integrity = intResult.data;
+
+  // Check 20: integrity schema version
+  if (!(SUPPORTED_INTEGRITY_VERSIONS as readonly string[]).includes(integrity.schema_version)) {
+    return sigstoreFail('E_UNSUPPORTED_VERSION', `Unsupported integrity schema version: ${integrity.schema_version}`);
+  }
+
+  // Check 21: file hash verification
+  for (const [filePath, expectedFileHash] of Object.entries(integrity.files)) {
+    if (!isPathSafe(filePath, skillDir)) {
+      return sigstoreFail('E_INTEGRITY_MISMATCH', `Path traversal detected: ${filePath}`, filePath);
+    }
+    const fullPath = join(skillDir, filePath);
+    let fileData: Buffer;
+    try {
+      fileData = await readFile(fullPath);
+    } catch {
+      return sigstoreFail('E_INTEGRITY_MISMATCH', `File hash mismatch: ${filePath}`, filePath);
+    }
+    const actualFileHash = hashData(fileData);
+    const expParsed = parseHashString(expectedFileHash);
+    const actParsed = parseHashString(actualFileHash);
+    if (!safeHashCompare(Buffer.from(expParsed.hex, 'hex'), Buffer.from(actParsed.hex, 'hex'))) {
+      return sigstoreFail('E_INTEGRITY_MISMATCH', `File hash mismatch: ${filePath}`, filePath);
+    }
+  }
+
+  // Check 22: extra files
+  const allFiles = await walkFiles(skillDir, skillDir);
+  for (const f of allFiles) {
+    if (!(f in integrity.files)) {
+      return sigstoreFail('E_EXTRA_FILES', `Undeclared file: ${f}`, f);
+    }
+  }
+
+  // Parse and validate permissions.json
+  let permissions: Permissions | undefined;
+  let permRaw: string;
+  try {
+    permRaw = await readFile(join(vaultDir, 'permissions.json'), 'utf-8');
+  } catch {
+    return sigstoreFail('E_INVALID_ENVELOPE', 'Could not read permissions.json');
+  }
+
+  let permObj: unknown;
+  try {
+    permObj = JSON.parse(permRaw);
+  } catch {
+    return sigstoreFail('E_INVALID_ENVELOPE', 'permissions.json is not valid JSON');
+  }
+
+  const permParsed = PermissionsSchema.safeParse(permObj);
+  if (!permParsed.success) {
+    return sigstoreFail('E_INVALID_ENVELOPE', `permissions.json failed validation: ${permParsed.error.message}`);
+  }
+  permissions = permParsed.data;
+
+  const permCanonical = canonicalizeToBuffer(permissions);
+  const permHash = hashData(permCanonical);
+  const expectedPermHash = parseHashString(attestation.permissions_hash);
+  const actualPermHash = parseHashString(permHash);
+  if (!safeHashCompare(Buffer.from(expectedPermHash.hex, 'hex'), Buffer.from(actualPermHash.hex, 'hex'))) {
+    return sigstoreFail('E_INTEGRITY_MISMATCH', 'permissions.json hash mismatch');
+  }
+
+  // Check 23: revocation (revocation lists are always Ed25519-signed, even for Sigstore skills)
+  let trustLevel: TrustLevel = 'full';
+  const revKeyring = options.revocationKeys ?? {};
+
+  if (options.context === 'install') {
+    const revResult = checkRevocationForInstall(
+      attestation.skill.name,
+      attestation.skill.version,
+      options.revocationList,
+      revKeyring,
+      options.cachedSequenceNumber
+    );
+    if (revResult.errors.length > 0) {
+      return { valid: false, trustLevel: 'none', warnings: [], errors: revResult.errors };
+    }
+    trustLevel = revResult.trustLevel;
+  } else {
+    const revResult = checkRevocationForRuntime(
+      attestation.skill.name,
+      attestation.skill.version,
+      options.revocationList,
+      revKeyring,
+      options.cachedSequenceNumber,
+      options.lastValidRevocationList
+    );
+    if (revResult.errors.length > 0) {
+      return { valid: false, trustLevel: 'none', warnings: revResult.warnings, errors: revResult.errors };
+    }
+    warnings.push(...revResult.warnings);
+    trustLevel = revResult.trustLevel;
+  }
+
+  return {
+    valid: true,
+    trustLevel,
+    warnings,
+    errors: [],
+    attestation,
+    permissions,
+    keyId: `sigstore:${signerInfo.identity}`,
+    signerIdentity: signerInfo.identity,
+    signerIssuer: signerInfo.issuer,
+  };
+}
+
+function sigstoreFail(code: VerifyError['code'], message: string, file?: string): SigstoreVerifyResult {
+  return {
+    valid: false,
+    trustLevel: 'none',
+    warnings: [],
+    errors: [{ code, message, file }],
   };
 }
