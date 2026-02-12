@@ -39,6 +39,7 @@ export class MemoryStore implements RegistryStore {
     const inputBuf = Buffer.from(apiKeyHash, 'utf8');
 
     for (const p of this.publishers.values()) {
+      if (!p.apiKeyHash) continue;
       const storedBuf = Buffer.from(p.apiKeyHash, 'utf8');
       // timingSafeEqual requires equal-length buffers, SHA-256 hex is always 64 chars
       if (inputBuf.length === storedBuf.length && timingSafeEqual(inputBuf, storedBuf)) {
