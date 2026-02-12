@@ -5,7 +5,8 @@ export type ThreatCategory =
   | 'prompt_injection'
   | 'persistence'
   | 'campaign_indicator'
-  | 'credential_exposure';
+  | 'credential_exposure'
+  | 'obfuscation';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 
