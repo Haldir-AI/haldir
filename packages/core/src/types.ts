@@ -37,7 +37,9 @@ export type ErrorCode =
 export type WarningCode =
   | 'W_REVOCATION_UNAVAILABLE'
   | 'W_REVOCATION_STALE'
-  | 'W_REVOCATION_SIG_INVALID';
+  | 'W_REVOCATION_SIG_INVALID'
+  | 'W_VETTING_TIMESTAMP_INVALID'
+  | 'W_VETTING_STALE';
 
 export type TrustLevel = 'full' | 'degraded' | 'none';
 
@@ -74,6 +76,7 @@ export interface Attestation {
   };
   integrity_hash: string;    // sha256:<64hex>
   permissions_hash: string;  // sha256:<64hex>
+  vetting_report_hash?: string;  // sha256:<64hex> (optional, binds vetting report)
   signed_at: string;         // ISO 8601
   _critical?: string[];
   [key: string]: unknown;
@@ -133,6 +136,7 @@ export interface VerifyResult {
   errors: VerifyError[];
   attestation?: Attestation;
   permissions?: Permissions;
+  vettingReport?: VettingReport;
   keyId?: string;
 }
 
@@ -144,6 +148,7 @@ export interface CLIOutput {
   errors: Array<{ code: string; message: string; file?: string }>;
   attestation: Attestation | null;
   permissions: Permissions | null;
+  vettingReport: VettingReport | null;
 }
 
 // --- Revocation Types ---
@@ -191,6 +196,7 @@ export interface EnvelopeOptions {
     type: string;
   };
   permissions?: Permissions['declared'];
+  vettingReport?: VettingReport;
 }
 
 export interface KeylessEnvelopeOptions {
@@ -200,6 +206,7 @@ export interface KeylessEnvelopeOptions {
     type: string;
   };
   permissions?: Permissions['declared'];
+  vettingReport?: VettingReport;
   identityToken?: string;
   fulcioURL?: string;
   rekorURL?: string;
@@ -239,4 +246,46 @@ export interface FilesystemCheckResult {
   errors: VerifyError[];
   fileCount: number;
   totalSize: number;
+}
+
+// --- Vetting Report Types ---
+
+export const SUPPORTED_VETTING_REPORT_VERSIONS = ['1.0'] as const;
+
+export type VettingStatus = 'pass' | 'flag' | 'reject';
+export type VettingSeverity = 'critical' | 'high' | 'medium' | 'low';
+
+export interface VettingFinding {
+  severity: VettingSeverity;
+  category: string;
+  pattern_id?: string;
+  file?: string;
+  line?: number;
+  column?: number;
+  match?: string;
+  context?: string;
+  message: string;
+}
+
+export interface VettingLayerResult {
+  layer: number;
+  name: string;
+  status: VettingStatus;
+  duration_ms?: number;
+  findings: VettingFinding[];
+  summary?: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
+
+export interface VettingReport {
+  schema_version: string;
+  vetting_timestamp: string;
+  pipeline_version: string;
+  layers: VettingLayerResult[];
+  overall_status: VettingStatus;
+  publisher_note?: string;
 }

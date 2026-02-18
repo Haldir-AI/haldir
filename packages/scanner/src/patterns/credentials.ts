@@ -48,6 +48,15 @@ export const credentialPatterns: ThreatPattern[] = [
     fileExtensions: ALL_EXTENSIONS,
   },
   {
+    id: 'jwt_secret',
+    category: 'credential_exposure',
+    severity: 'high',
+    name: 'JWT signing secret',
+    description: 'Hardcoded JWT signing secret or token secret',
+    regex: /(?:JWT_SECRET|jwtSecret|TOKEN_SECRET|tokenSecret)\s*[=:]\s*['"][^'"]+['"]/,
+    fileExtensions: CODE_EXTENSIONS,
+  },
+  {
     id: 'generic_api_key',
     category: 'credential_exposure',
     severity: 'medium',

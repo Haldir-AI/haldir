@@ -59,6 +59,23 @@ describe('hashDirectory', () => {
     expect(Object.keys(result)).toContain('sub/file.txt');
   });
 
+  it('normalizes nested paths to forward slashes (cross-platform)', async () => {
+    await mkdir(join(tempDir, 'sub', 'deep'), { recursive: true });
+    await writeFile(join(tempDir, 'sub', 'deep', 'file.txt'), 'data');
+    const result = await hashDirectory(tempDir);
+    const keys = Object.keys(result);
+    expect(keys).toContain('sub/deep/file.txt');
+    expect(keys.every(k => !k.includes('\\'))).toBe(true);
+  });
+
+  it('handles Unicode filenames in integrity manifest', async () => {
+    await writeFile(join(tempDir, 'café.txt'), 'french');
+    await writeFile(join(tempDir, '日本語.md'), 'japanese');
+    const result = await hashDirectory(tempDir);
+    expect(Object.keys(result)).toContain('café.txt');
+    expect(Object.keys(result)).toContain('日本語.md');
+  });
+
   it('sorts keys by UTF-8 byte order', async () => {
     await writeFile(join(tempDir, 'b.txt'), 'b');
     await writeFile(join(tempDir, 'a.txt'), 'a');

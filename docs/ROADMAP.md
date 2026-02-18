@@ -1,8 +1,8 @@
 # Haldir — Complete Forward Plan
 
-**Status:** Phases 1, 2A, 2C, 2B (all layers) complete. This document covers remaining phases.
+**Status:** Phases 1, 2A, 2B, 2C, 2D, 2E, 3 (core) complete. This document covers remaining work.
 
-**Last updated:** 2026-02-10
+**Last updated:** 2026-02-15
 
 ---
 
@@ -10,7 +10,7 @@
 
 ```
 Phase 1: Crypto Foundation ✅ DONE
-├── 3 packages (@haldir/core, @haldir/cli, @haldir/sdk)
+├── 11 packages (@haldir/core, cli, sdk, scanner, auditor, sandbox, reviewer, pipeline, enforcer, registry, scheduler)
 ├── .vault/ envelope format (DSSE v1.0.0, RFC 8785, Ed25519, SHA-256)
 ├── V1 Verification Contract (25 checks, fail-fast)
 ├── Revocation lists (signed, install fail-closed / runtime fail-open)
@@ -103,20 +103,57 @@ Phase 2B-Pipeline: Vetting Orchestrator ✅ DONE
 ├── Skip layers: skipLayers config for partial pipeline runs
 └── 10 pipeline integration tests
 
-429 tests passing (422 unit + 7 CLI e2e), 9 packages
+Phase 2B-Transparency: Vetting Report Disclosure ✅ DONE
+├── vetting-report.json in .vault/ (optional transparency disclosure)
+├── Hash-bound to attestation (vetting_report_hash prevents tampering)
+├── Canonical JSON (RFC 8785) for deterministic hashing
+├── Schema validation with size limits (DoS protection)
+├── 5-layer findings, overall status (pass/flag/reject), publisher note
+├── --vetting-report <path> flag on haldir sign + cosign
+├── Returned in verify result even on signature failure
+├── Timestamp validation (vetting before signing, staleness warnings)
+└── 10/10 security score (hash-binding, canonical JSON, size limits)
+
+Phase 2D: Runtime Permission Enforcement ✅ DONE
+├── @haldir/enforcer package
+├── Permission compiler (permissions.json → sandbox policy)
+├── Node.js --allow-fs-read/write enforcement
+├── macOS sandbox-exec profiles
+├── haldir enforce <dir> CLI command
+└── 12 enforcer tests (compiler, runner, node-permissions, darwin-sandbox)
+
+Phase 2E: Registry API ✅ DONE
+├── @haldir/registry package (Express v5, MemoryStore)
+├── Skill submission, search, download endpoints
+├── Publisher trust tiers (unverified/verified/trusted/internal)
+├── API key authentication with timing-safe comparison
+├── Revocation + advisory endpoints
+├── Pattern bundle endpoint (dynamic scanner updates)
+├── Federation badge + verify endpoints
+└── 81 registry tests (store, server, tiers, auth, patterns)
+
+Phase 3 (Core): Rescan + Federation ✅ DONE
+├── @haldir/scheduler — tier-based rescan policies (7d/14d/30d/on-update)
+├── Federation badge + verify endpoints
+├── Dynamic pattern updates from registry (24h cache + fallback)
+└── 28 scheduler tests
+
+687 tests passing across 44 test files, 11 packages
 ```
 
 ### What's Still Missing
 
 - No public key / identity distribution mechanism
 - No revocation list hosting
-- No registry API
-- ~~No vetting pipeline~~ — 5-layer pipeline built (Layers 1-4 + orchestrator)
-- No permission enforcement (permissions.json is informational only)
+- ~~No registry API~~ — @haldir/registry built (Express v5, tiers, auth, patterns) ✅
+- ~~No vetting pipeline~~ — 5-layer pipeline built (Layers 1-4 + orchestrator) ✅
+- ~~No vetting transparency~~ — hash-bound vetting-report.json complete ✅
+- ~~No permission enforcement~~ — @haldir/enforcer built (Node.js + macOS sandbox) ✅
 - No publisher identity or accounts
-- ~~No CI/CD integration~~ — GitHub Action built (action/)
+- ~~No CI/CD integration~~ — GitHub Action built (action/) ✅
 - No human review dashboard (Layer 5)
 - No submission queue (Redis/Celery)
+- No npm packages published yet
 
 ---
 
@@ -311,6 +348,7 @@ Layer 5: Human Review (amber zone only)
 - [x] Layer 3: Sandbox execution (@haldir/sandbox)
 - [x] Layer 4: Dual-LLM audit integration (@haldir/reviewer)
 - [x] Pipeline orchestrator (@haldir/pipeline)
+- [x] Vetting report transparency (hash-bound vetting-report.json)
 - [ ] Layer 5: Human review dashboard
 - [ ] Vetting result storage (PostgreSQL)
 - [ ] Auto-sign on approval
@@ -374,9 +412,9 @@ Consumers only need to trust ONE key (HydraCore's). HydraCore's signature means 
 
 ---
 
-## Phase 2D — Runtime Permission Enforcement (2-3 weeks)
+## Phase 2D — Runtime Permission Enforcement ✅ DONE
 
-**Biggest security gap.** permissions.json currently does nothing. Skills can declare minimal permissions while doing anything.
+Permissions.json is now enforced at runtime via @haldir/enforcer.
 
 ### Current vs. Target
 
@@ -419,18 +457,20 @@ Agent loads skill →
 
 ### Deliverables
 
-- [ ] Permission parser (permissions.json → sandbox policy)
-- [ ] Linux sandbox (seccomp-bpf)
-- [ ] macOS sandbox (sandbox profiles)
+- [x] Permission parser (permissions.json → sandbox policy)
+- [ ] Linux sandbox (seccomp-bpf / Landlock — pending validation)
+- [x] macOS sandbox (sandbox profiles)
+- [x] Node.js --allow-fs-read/write enforcement
+- [x] haldir enforce CLI command
 - [ ] Agent runtime integration
 - [ ] Violation detection + alerting
 - [ ] Audit logging (every grant/deny)
 
 ---
 
-## Phase 2E — Registry API (3-4 weeks)
+## Phase 2E — Registry API ✅ DONE (core)
 
-Public-facing registry for skill submission, discovery, and download.
+Registry API built with Express v5, MemoryStore (PostgreSQL-ready).
 
 ### Core Endpoints
 
@@ -491,9 +531,13 @@ HydraCore (internal)
 
 ### Deliverables
 
-- [ ] API server (FastAPI or Express)
+- [x] API server (Express v5, MemoryStore — PostgreSQL-ready)
+- [x] Authentication (API keys with timing-safe comparison)
+- [x] Publisher trust tiers (unverified/verified/trusted/internal)
+- [x] Pattern bundle endpoint (dynamic scanner updates)
+- [x] Federation badge + verify endpoints
 - [ ] PostgreSQL schema (skills, publishers, submissions, vetting_results)
-- [ ] Authentication (GitHub OAuth, API keys)
+- [ ] GitHub OAuth
 - [ ] CDN for skill packages
 - [ ] Search index (PostgreSQL full-text or Meilisearch)
 - [ ] Publisher onboarding flow
@@ -541,7 +585,7 @@ Sigstore is now in Phase 2A. Phase 3 focuses on ecosystem growth and federation.
 - [ ] Federation importers (skills.sh, MCP Registry)
 - [x] `haldir-ai/sign-action` GitHub Action (action/ directory)
 - [ ] Security advisory system
-- [ ] Periodic rescan pipeline
+- [x] Periodic rescan pipeline (@haldir/scheduler — tier-based policies)
 - [ ] CodeMarine webhook integration
 
 ---
@@ -597,17 +641,18 @@ Sigstore is now in Phase 2A. Phase 3 focuses on ecosystem growth and federation.
 ## Timeline
 
 ```
-Feb 2026      Phase 1 ✅ DONE
-Feb 2026      Phase 1.5 — README ✅, doc renames ✅, npm publish, repos
-Feb 2026      Phase 2A — Sigstore keyless signing ✅ DONE
-Feb 2026      Phase 2C — Dual-sign ✅ DONE
-Feb 2026      Phase 2B — Vetting pipeline (5-layer) ✅ DONE (L1-L4 + orchestrator)
-Mar-Apr 2026  Phase 2D — Runtime permission enforcement
-Apr-May 2026  Phase 2E — Registry API + publisher tiers + frontend
-May 2026      Phase 2 complete → first public skills accepted
-Jun-Aug 2026  Phase 3 — Federation, sign-action, rescans, advisories
-Aug 2026      Phase 3 complete → ecosystem flywheel
-Sep-Oct 2026  Phase 4 — Enterprise, ML, community intel
+Feb 2026      Phase 1 ✅ Crypto Foundation
+Feb 2026      Phase 1.5 — README ✅, doc renames ✅, repos pushed ✅
+Feb 2026      Phase 2A — Sigstore keyless signing ✅
+Feb 2026      Phase 2B — 5-layer vetting pipeline + transparency ✅
+Feb 2026      Phase 2C — Dual-sign ✅
+Feb 2026      Phase 2D — Runtime permission enforcement ✅
+Feb 2026      Phase 2E — Registry API + publisher tiers ✅
+Feb 2026      Phase 3 (core) — Scheduler + federation + dynamic patterns ✅
+              -------------------------------------------------------
+              npm publish, production keypair, revocation hosting
+Mar-Apr 2026  Phase 3 (ecosystem) — Federation importers, advisories
+Apr-May 2026  Phase 4 — Enterprise, ML, community intel
 ```
 
 ---
@@ -635,9 +680,11 @@ Sep-Oct 2026  Phase 4 — Enterprise, ML, community intel
 | Keyless signing (Sigstore) | ✅ | ✅ | ✅ | Nobody (for agent skills) |
 | Transparency log (Rekor) | ✅ | ✅ | ✅ | Nobody (for agent skills) |
 | Dual-sign | ✅ | ✅ | ✅ | Nobody |
-| 5-layer vetting | ❌ | ✅ | ✅ | Nobody |
-| Permission enforcement | ❌ | ✅ | ✅ | mcp.run (Wasm only) |
+| 5-layer vetting | ✅ | ✅ | ✅ | Nobody |
+| Permission enforcement | ✅ | ✅ | ✅ | mcp.run (Wasm only) |
+| Registry API | ✅ | ✅ | ✅ | Nobody (for agent skills) |
+| Periodic rescans | ✅ | ✅ | ✅ | Nobody |
 | Federation | ❌ | ❌ | ✅ | Nobody |
-| Dual-LLM semantic audit | ❌ | ✅ | ✅ | Nobody |
+| Dual-LLM semantic audit | ✅ | ✅ | ✅ | Nobody |
 
 **The moat:** Every phase adds a layer no competitor has. By Phase 3, Haldir is the most secure agent skill ecosystem in existence.

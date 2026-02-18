@@ -78,10 +78,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
     ├── signature.json        # DSSE v1.0.0 envelope (signs the attestation)
     ├── attestation.json      # Signed payload: metadata + integrity hash + permissions hash
     ├── integrity.json        # File-level SHA-256 allowlist
-    └── permissions.json      # Declared capabilities
+    ├── permissions.json      # Declared capabilities
+    └── vetting-report.json   # [OPTIONAL] Pre-publication vetting findings
 ```
 
-The `.vault/` directory MUST contain exactly these four files.
+The `.vault/` directory MUST contain `signature.json`, `attestation.json`, `integrity.json`, and `permissions.json`. It MAY optionally contain `vetting-report.json`.
 
 Files within `.vault/` are excluded from integrity hashing. All other files in the skill directory (including dotfiles and subdirectories) are covered by `integrity.json`.
 
@@ -179,6 +180,7 @@ Human-readable equivalent:
 | `skill.type` | string | REQUIRED | Package type. Registered values: `"skill.md"`, `"mcp"`. Implementations MAY define additional types. |
 | `integrity_hash` | string | REQUIRED | SHA-256 hash of the raw bytes of `integrity.json` as written to disk. Format: `sha256:<64 lowercase hex>`. |
 | `permissions_hash` | string | REQUIRED | SHA-256 hash of the canonical JSON serialization of the permissions object (parsed from `permissions.json`). Format: `sha256:<64 lowercase hex>`. |
+| `vetting_report_hash` | string | OPTIONAL | SHA-256 hash of the canonical JSON bytes of `vetting-report.json`. Format: `sha256:<64 lowercase hex>`. When present, verifiers MUST check the vetting report matches this hash. Prevents tampering with transparency disclosures. See Section 3.5. |
 | `signed_at` | string | REQUIRED | ISO 8601 UTC timestamp of signing. |
 | `_critical` | array of strings | OPTIONAL | Field paths that MUST be understood by the verifier. See Section 3.2.1. |
 
@@ -272,6 +274,127 @@ Permission declarations describe the capabilities a skill claims to need. Writte
 **Extensibility:** All objects in the permissions schema MUST preserve unknown fields (passthrough). This allows future extensions without breaking existing verifiers. Unknown fields are included in the permissions hash.
 
 **Enforcement:** v1.0 permissions are informational only. They are verified (hash-bound to the attestation, so tampering is detectable) but NOT enforced at runtime. Enforcement is the responsibility of the hosting platform and is expected in a future version. Consumers MUST NOT rely on permissions for security decisions until enforcement is specified.
+
+### 3.5 vetting-report.json (Optional)
+
+The vetting report provides **transparency** into pre-publication security analysis. It is an OPTIONAL file that publishers MAY include to disclose static analysis findings, dependency audits, sandbox execution results, and LLM reviews performed before signing.
+
+**Written as canonical JSON** (RFC 8785) - not pretty-printed. This ensures deterministic hashing for cryptographic binding to the attestation.
+
+#### Cryptographic Binding
+
+When a vetting report is included, the attestation MUST contain a `vetting_report_hash` field with the SHA-256 hash of the canonical JSON bytes of `vetting-report.json`. This creates a cryptographic binding that prevents tampering with the transparency disclosure.
+
+**Verification requirements:**
+
+1. If `attestation.vetting_report_hash` is present, verifiers MUST check that `vetting-report.json` exists
+2. Verifiers MUST compute the SHA-256 hash of the canonical JSON bytes
+3. Verifiers MUST compare the computed hash with `attestation.vetting_report_hash`
+4. Any mismatch MUST result in verification failure with error code `E_INTEGRITY_MISMATCH`
+
+**Security guarantee:** Because the attestation is cryptographically signed, and the vetting report hash is part of the attestation, any modification to the vetting report after signing will be detected during verification. This prevents attackers from changing "reject" to "pass" or removing findings.
+
+#### Size Limits (DoS Protection)
+
+To prevent denial-of-service attacks via maliciously large vetting reports, implementations MUST enforce these limits:
+
+| Field | Maximum |
+|-------|---------|
+| `layers` array | 10 entries |
+| `findings` array (per layer) | 1000 entries |
+| `publisher_note` | 5000 characters |
+| `category` | 100 characters |
+| `pattern_id` | 100 characters |
+| `file` | 500 characters |
+| `match` | 500 characters |
+| `context` | 1000 characters |
+| `message` | 1000 characters |
+| `duration_ms` | 3,600,000 (1 hour) |
+| Field counts per finding | 10,000 per severity |
+
+Reports exceeding these limits MUST be rejected during signing.
+
+```json
+{
+  "schema_version": "1.0",
+  "vetting_timestamp": "2026-02-12T06:43:52.580Z",
+  "pipeline_version": "0.1.0",
+  "layers": [
+    {
+      "layer": 1,
+      "name": "scanner",
+      "status": "flag",
+      "duration_ms": 128,
+      "findings": [
+        {
+          "severity": "high",
+          "category": "privilege_escalation",
+          "pattern_id": "env_harvest_node",
+          "file": "index.js",
+          "line": 12,
+          "message": "Accesses environment variables (potential secret exposure)"
+        }
+      ],
+      "summary": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0
+      }
+    }
+  ],
+  "overall_status": "flag",
+  "publisher_note": "process.env access used for API key retrieval - acceptable for weather service use case"
+}
+```
+
+**Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema_version` | string | REQUIRED | MUST be a supported version. Currently: `"1.0"`. |
+| `vetting_timestamp` | string | REQUIRED | ISO 8601 UTC timestamp when vetting was performed. |
+| `pipeline_version` | string | REQUIRED | Version of the vetting pipeline used. |
+| `layers` | array | REQUIRED | Results from each vetting layer (scanner, auditor, sandbox, reviewer, human). MUST contain at least one entry. |
+| `overall_status` | string | REQUIRED | Aggregate vetting result: `"pass"`, `"flag"`, or `"reject"`. |
+| `publisher_note` | string | OPTIONAL | Publisher explanation of findings or context. |
+
+**Layer object:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `layer` | number | REQUIRED | Layer sequence number (1-5). |
+| `name` | string | REQUIRED | Layer identifier (e.g., `"scanner"`, `"auditor"`, `"sandbox"`, `"reviewer"`, `"human"`). |
+| `status` | string | REQUIRED | Layer result: `"pass"`, `"flag"`, or `"reject"`. |
+| `duration_ms` | number | OPTIONAL | Execution time in milliseconds. |
+| `findings` | array | REQUIRED | Security findings. Empty array if no issues found. |
+| `summary` | object | OPTIONAL | Finding counts by severity: `{critical, high, medium, low}`. |
+
+**Finding object:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `severity` | string | REQUIRED | One of: `"critical"`, `"high"`, `"medium"`, `"low"`. |
+| `category` | string | REQUIRED | Threat category (e.g., `"exfiltration"`, `"privilege_escalation"`, `"supply_chain"`). |
+| `message` | string | REQUIRED | Human-readable description of the issue. |
+| `pattern_id` | string | OPTIONAL | Scanner pattern or check identifier. |
+| `file` | string | OPTIONAL | Relative path to the file containing the issue. |
+| `line` | number | OPTIONAL | Line number (1-indexed). |
+| `column` | number | OPTIONAL | Column number (0-indexed). |
+| `match` | string | OPTIONAL | Matched code snippet. |
+| `context` | string | OPTIONAL | Full line or surrounding context. |
+
+**Design notes:**
+
+- The vetting report IS cryptographically bound to the signature via the `vetting_report_hash` field in the attestation. This prevents tampering while keeping the report human-readable.
+- Verifiers SHOULD display vetting reports to users during installation to enable informed consent ("this skill was flagged for X, but the publisher explains Y").
+- The absence of a vetting report does NOT imply a lack of vetting. Publishers may choose not to disclose internal security analysis.
+- Verifiers MUST return the vetting report even when signature verification fails, so users can see historical findings for revoked/invalid skills.
+- **Timestamp validation:** Verifiers SHOULD validate that `vetting_timestamp` is before `attestation.signed_at` (allowing ±5 minutes for clock skew). Verifiers MAY warn if vetting is more than 30 days old at signing time.
+- Status semantics:
+  - `"pass"`: No security concerns identified.
+  - `"flag"`: Issues found but deemed acceptable by publisher (explained in `publisher_note`).
+  - `"reject"`: Critical issues that prevent publication (skill SHOULD NOT be signed).
 
 ---
 
@@ -767,7 +890,58 @@ The reference implementation repository provides:
 - Complete `.vault/` envelope fixtures (valid, tampered, unsigned, with symlink, with hard link, with extra file).
 - Revocation list fixtures (valid, expired, rolled-back, forged signature).
 
-## Appendix C: Acknowledgments
+## Appendix C: Known Limitations
+
+This section documents known limitations of the current Haldir implementation. Consumers of Haldir SHOULD be aware of these constraints.
+
+### C.1 PAE Interoperability
+
+Haldir's PAE construction uses ASCII decimal length strings instead of the INT64LE encoding specified by DSSE v1.0.0. This means:
+
+- Haldir envelopes are **NOT interoperable** with generic DSSE verifiers (sigstore, in-toto).
+- Sign and verify within Haldir are consistent and correct.
+- If interoperability with upstream DSSE tooling becomes required, the PAE encoding must change and all existing envelopes re-signed. This is a breaking change.
+
+### C.2 Scanner Detection Model
+
+The scanner uses pattern-based (regex) detection with a targeted multiline pass. It is NOT a full static analysis tool.
+
+**What the scanner detects well:**
+- Command injection and obfuscation variants (100% on adversarial corpus)
+- Data exfiltration patterns (100%)
+- Credential exposure (100%)
+- Privilege escalation (100%)
+- Supply chain risks in package.json manifests (unpinned deps, git URLs, protocol smuggling, native addons, typosquatting)
+
+**Structural limitations:**
+- **No full AST/dataflow analysis.** Complex obfuscation chains that span many lines with intermediate variables may evade detection.
+- **Typosquatting detection is heuristic.** Uses Levenshtein distance against a curated list of ~90 popular packages. Novel typosquats against less popular packages may not be caught.
+- **No external registry lookup.** Cannot verify whether a package name actually exists on npm.
+- **No binary analysis.** Native addons compiled via node-gyp are flagged but not analyzed.
+
+### C.3 Runtime Enforcement
+
+Runtime permission enforcement relies on Node.js v23+ `--experimental-permission` flags.
+
+**Constraints:**
+- **Node.js v23+ required.** Older Node.js versions have no permission model; enforcement is not available.
+- **TOCTOU vulnerability.** Files can be modified between scan time and runtime. Integrity verification via `.vault/integrity.json` mitigates this but is not enforced at runtime by default.
+- **No Linux Landlock integration yet.** The permission model is Node.js-level, not kernel-level. A compromised Node.js runtime can bypass it.
+- **macOS-specific:** `/var` requires explicit `--allow-fs-read` due to `/private/var` symlink.
+
+### C.4 Sigstore Integration
+
+The `extractSignerInfo()` function navigates the internal structure of sigstore's verification result object (tested against sigstore v4.x). If the sigstore library changes its return type in future versions, identity extraction may fail safely to `identity: 'unknown'`, which rejects verification. This fails safe but may produce confusing error messages.
+
+### C.5 Platform Support
+
+- **Linux and macOS:** Tested and supported.
+- **Windows:** Path normalization (`\` → `/`) is implemented but not extensively tested with Windows-native paths.
+- **Docker/Kubernetes:** Not tested at scale for runtime enforcement.
+
+---
+
+## Appendix D: Acknowledgments
 
 This specification builds on the work of the Secure Systems Lab (DSSE, in-toto), the Sigstore project (keyless signing, transparency logs), and the broader software supply chain security community. The CoSAI whitepaper on MCP security (January 2026) directly informed the revocation and trust model.
 

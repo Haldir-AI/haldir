@@ -5,7 +5,7 @@ import { canonicalizeToBuffer } from './canonical.js';
 import { encodePAE } from './pae.js';
 import { checkFilesystem } from './integrity.js';
 import { hasSigstoreBundle, readSigstoreBundle, verifyWithSigstore } from './sigstore.js';
-import { SignatureEnvelopeSchema, AttestationSchema, IntegritySchema, PermissionsSchema } from './schemas.js';
+import { SignatureEnvelopeSchema, AttestationSchema, IntegritySchema, PermissionsSchema, VettingReportSchema } from './schemas.js';
 import {
   VAULT_DIR,
   HALDIR_PAYLOAD_TYPE,
@@ -20,6 +20,7 @@ import type {
   VerifyWarning,
   Attestation,
   Permissions,
+  VettingReport,
   TrustLevel,
   SigstoreVerifyOptions,
   SigstoreVerifyResult,
@@ -66,6 +67,39 @@ async function walkFiles(dir: string, rootDir: string): Promise<string[]> {
     }
   }
   return results;
+}
+
+async function readVettingReport(vaultDir: string): Promise<{ report: VettingReport; bytes: Buffer } | undefined> {
+  const vettingReportPath = join(vaultDir, 'vetting-report.json');
+  try {
+    await access(vettingReportPath);
+  } catch {
+    // vetting-report.json is optional
+    return undefined;
+  }
+
+  let vettingBytes: Buffer;
+  try {
+    vettingBytes = await readFile(vettingReportPath);
+  } catch {
+    return undefined;
+  }
+
+  let vettingObj: unknown;
+  try {
+    vettingObj = JSON.parse(vettingBytes.toString('utf-8'));
+  } catch {
+    // Invalid JSON - ignore silently (vetting report is optional)
+    return undefined;
+  }
+
+  const vettingResult = VettingReportSchema.safeParse(vettingObj);
+  if (!vettingResult.success) {
+    // Invalid schema - ignore silently (vetting report is optional)
+    return undefined;
+  }
+
+  return { report: vettingResult.data as VettingReport, bytes: vettingBytes };
 }
 
 export async function verifyEnvelope(
@@ -228,6 +262,54 @@ export async function verifyEnvelope(
     }
   }
 
+  // Check 17.5: vetting report (optional, but hash-verified if present)
+  const vettingData = await readVettingReport(vaultDir);
+  let vettingReport: VettingReport | undefined;
+
+  if (attestation.vetting_report_hash) {
+    // Attestation declares a vetting report hash - verify it
+    if (!vettingData) {
+      return fail('E_INTEGRITY_MISMATCH', 'Attestation declares vetting_report_hash but vetting-report.json not found');
+    }
+
+    const actualVettingHash = hashData(vettingData.bytes);
+    const expectedVettingHash = parseHashString(attestation.vetting_report_hash);
+    const actualParsed = parseHashString(actualVettingHash);
+
+    if (!safeHashCompare(
+      Buffer.from(expectedVettingHash.hex, 'hex'),
+      Buffer.from(actualParsed.hex, 'hex')
+    )) {
+      return fail('E_INTEGRITY_MISMATCH', 'Vetting report hash mismatch (report has been tampered with)');
+    }
+
+    vettingReport = vettingData.report;
+
+    // Timestamp validation
+    const vettingTime = new Date(vettingReport.vetting_timestamp).getTime();
+    const signedTime = new Date(attestation.signed_at).getTime();
+
+    // Vetting must be before signing (allow 5min clock skew)
+    if (vettingTime > signedTime + 300_000) {
+      warnings.push({
+        code: 'W_VETTING_TIMESTAMP_INVALID',
+        message: `Vetting timestamp (${vettingReport.vetting_timestamp}) is after signing timestamp (${attestation.signed_at})`
+      });
+    }
+
+    // Vetting shouldn't be more than 30 days old at signing time
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    if (signedTime - vettingTime > thirtyDays) {
+      warnings.push({
+        code: 'W_VETTING_STALE',
+        message: `Vetting report is ${Math.floor((signedTime - vettingTime) / (24 * 60 * 60 * 1000))} days old at signing`
+      });
+    }
+  } else if (vettingData) {
+    // Vetting report exists but no hash in attestation - include but don't verify
+    vettingReport = vettingData.report;
+  }
+
   // Check 18: integrity.json hash
   const integrityRaw = await readFile(join(vaultDir, 'integrity.json'));
   const integrityHash = hashData(integrityRaw);
@@ -328,7 +410,7 @@ export async function verifyEnvelope(
       options.cachedSequenceNumber
     );
     if (revResult.errors.length > 0) {
-      return { valid: false, trustLevel: 'none', warnings: [], errors: revResult.errors };
+      return { valid: false, trustLevel: 'none', warnings: [], errors: revResult.errors, vettingReport };
     }
     trustLevel = revResult.trustLevel;
   } else {
@@ -341,7 +423,7 @@ export async function verifyEnvelope(
       options.lastValidRevocationList
     );
     if (revResult.errors.length > 0) {
-      return { valid: false, trustLevel: 'none', warnings: revResult.warnings, errors: revResult.errors };
+      return { valid: false, trustLevel: 'none', warnings: revResult.warnings, errors: revResult.errors, vettingReport };
     }
     warnings.push(...revResult.warnings);
     trustLevel = revResult.trustLevel;
@@ -354,6 +436,7 @@ export async function verifyEnvelope(
     errors: [],
     attestation,
     permissions,
+    vettingReport,
     keyId: verifiedKeyId,
   };
 }
@@ -474,6 +557,54 @@ export async function verifySigstoreEnvelope(
     }
   }
 
+  // Check 17.5: vetting report (optional, but hash-verified if present)
+  const vettingData = await readVettingReport(vaultDir);
+  let vettingReport: VettingReport | undefined;
+
+  if (attestation.vetting_report_hash) {
+    // Attestation declares a vetting report hash - verify it
+    if (!vettingData) {
+      return sigstoreFail('E_INTEGRITY_MISMATCH', 'Attestation declares vetting_report_hash but vetting-report.json not found');
+    }
+
+    const actualVettingHash = hashData(vettingData.bytes);
+    const expectedVettingHash = parseHashString(attestation.vetting_report_hash);
+    const actualParsed = parseHashString(actualVettingHash);
+
+    if (!safeHashCompare(
+      Buffer.from(expectedVettingHash.hex, 'hex'),
+      Buffer.from(actualParsed.hex, 'hex')
+    )) {
+      return sigstoreFail('E_INTEGRITY_MISMATCH', 'Vetting report hash mismatch (report has been tampered with)');
+    }
+
+    vettingReport = vettingData.report;
+
+    // Timestamp validation
+    const vettingTime = new Date(vettingReport.vetting_timestamp).getTime();
+    const signedTime = new Date(attestation.signed_at).getTime();
+
+    // Vetting must be before signing (allow 5min clock skew)
+    if (vettingTime > signedTime + 300_000) {
+      warnings.push({
+        code: 'W_VETTING_TIMESTAMP_INVALID',
+        message: `Vetting timestamp (${vettingReport.vetting_timestamp}) is after signing timestamp (${attestation.signed_at})`
+      });
+    }
+
+    // Vetting shouldn't be more than 30 days old at signing time
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    if (signedTime - vettingTime > thirtyDays) {
+      warnings.push({
+        code: 'W_VETTING_STALE',
+        message: `Vetting report is ${Math.floor((signedTime - vettingTime) / (24 * 60 * 60 * 1000))} days old at signing`
+      });
+    }
+  } else if (vettingData) {
+    // Vetting report exists but no hash in attestation - include but don't verify
+    vettingReport = vettingData.report;
+  }
+
   // Check 18: integrity.json hash
   const integrityRaw = await readFile(join(vaultDir, 'integrity.json'));
   const integrityHash = hashData(integrityRaw);
@@ -573,7 +704,7 @@ export async function verifySigstoreEnvelope(
       options.cachedSequenceNumber
     );
     if (revResult.errors.length > 0) {
-      return { valid: false, trustLevel: 'none', warnings: [], errors: revResult.errors };
+      return { valid: false, trustLevel: 'none', warnings: [], errors: revResult.errors, vettingReport };
     }
     trustLevel = revResult.trustLevel;
   } else {
@@ -586,7 +717,7 @@ export async function verifySigstoreEnvelope(
       options.lastValidRevocationList
     );
     if (revResult.errors.length > 0) {
-      return { valid: false, trustLevel: 'none', warnings: revResult.warnings, errors: revResult.errors };
+      return { valid: false, trustLevel: 'none', warnings: revResult.warnings, errors: revResult.errors, vettingReport };
     }
     warnings.push(...revResult.warnings);
     trustLevel = revResult.trustLevel;
@@ -599,6 +730,7 @@ export async function verifySigstoreEnvelope(
     errors: [],
     attestation,
     permissions,
+    vettingReport,
     keyId: `sigstore:${signerInfo.identity}`,
     signerIdentity: signerInfo.identity,
     signerIssuer: signerInfo.issuer,

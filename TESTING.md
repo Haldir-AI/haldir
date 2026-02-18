@@ -90,19 +90,22 @@ npx vitest run e2e/scenarios/revocation.test.ts
 
 ### 3. Unit Tests (`pnpm test`)
 
-**Purpose:** Low-level verification of crypto, canonicalization, schemas
+**Purpose:** Low-level verification of crypto, canonicalization, schemas, vetting, enforcement
 
-**Test Files:**
-- `packages/core/src/__tests__/canonical.test.ts` - RFC 8785 canonical JSON
-- `packages/core/src/__tests__/crypto.test.ts` - Ed25519 sign/verify
-- `packages/core/src/__tests__/envelope.test.ts` - DSSE envelope creation
-- `packages/core/src/__tests__/integration.test.ts` - Full sign→verify lifecycle
-- `packages/core/src/__tests__/integrity.test.ts` - SHA-256 allowlists
-- `packages/core/src/__tests__/pae.test.ts` - DSSE PAE encoding
-- `packages/core/src/__tests__/revocation.test.ts` - Revocation list signing
-- `packages/core/src/__tests__/verify.test.ts` - 25-check verification contract
+**Packages tested (11):**
+- `@haldir/core` — crypto, canonical JSON, PAE, envelope, integrity, revocation, verification
+- `@haldir/sdk` — Ed25519 + Sigstore verification
+- `@haldir/scanner` — threat patterns, static analysis, serialization, context-aware scanning
+- `@haldir/auditor` — dependency parsing, pin validation, CVE checks
+- `@haldir/sandbox` — permissions, execution, behavior analysis
+- `@haldir/reviewer` — dual-LLM prompts, scoring, escalation
+- `@haldir/pipeline` — 5-layer orchestration
+- `@haldir/enforcer` — permission compilation, Node.js + macOS sandbox
+- `@haldir/registry` — store, server, tiers, auth, pattern bundles
+- `@haldir/scheduler` — rescan policies, scheduling
+- `@haldir/cli` — cache, registry client, pattern resolution
 
-**Tests:** 119 unit tests
+**Tests:** 687 across 44 test files
 
 **Run:**
 ```bash
@@ -278,9 +281,14 @@ test("Ed25519 sign/verify", async () => {
 
 Current coverage:
 
-- **Unit tests:** 119 tests (crypto, schemas, verification contract)
-- **Integration tests:** 12 tests (full sign→verify lifecycle)
-- **E2E tests:** 25+ tests (CLI end-to-end scenarios)
+- **687 tests passing** across 44 test files, 11 packages
+  - Core crypto & verification (149+ tests)
+  - Vetting pipeline — scanner, auditor, sandbox, reviewer, pipeline (300+ tests)
+  - Runtime enforcer (12+ tests)
+  - Registry API — store, server, tiers, auth, patterns (80+ tests)
+  - Scheduler — rescan policies (28+ tests)
+  - SDK & CLI — verification, cache, registry client (50+ tests)
+  - Integration & E2E (70+ tests)
 - **CLI test suite:** 7 built-in tests
 
 ## Troubleshooting
@@ -319,7 +327,7 @@ pnpm install --no-frozen-lockfile
 Expected test durations:
 
 - **CLI test suite:** ~1 second (7 tests)
-- **Unit tests:** ~2 seconds (119 tests)
+- **Unit tests:** ~2 seconds (687 tests)
 - **E2E tests:** ~10 seconds (25+ tests)
 - **Full suite:** ~13 seconds total
 

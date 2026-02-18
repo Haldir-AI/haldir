@@ -34,8 +34,8 @@ export const promptInjectionPatterns: ThreatPattern[] = [
     category: 'prompt_injection',
     severity: 'critical',
     name: 'Hidden Unicode directives',
-    description: 'Uses zero-width or invisible Unicode characters to hide content',
-    regex: /[\u200B\u200C\u200D\uFEFF\u2060\u00AD]|[\u202A-\u202E]|[\u2066-\u2069]/,
+    description: 'Uses zero-width or invisible Unicode characters to hide content (excluding ZWJ which is handled by grapheme-aware scanner)',
+    regex: /[\u200B\u200C\uFEFF\u2060\u00AD]|[\u202A-\u202E]|[\u2066-\u2069]/,  // Removed \u200D (ZWJ) - handled by scanForSuspiciousUnicode()
     fileExtensions: ALL_EXTENSIONS,
   },
   {

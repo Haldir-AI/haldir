@@ -21,7 +21,10 @@
     "test:cli": "pnpm build && node packages/cli/dist/index.js test",
     "lint": "pnpm -r exec tsc --noEmit",
     "schemas": "tsx scripts/generate-schemas.ts",
-    "clean": "pnpm -r exec rm -rf dist"
+    "clean": "pnpm -r exec rm -rf dist",
+    "validation:collect": "tsx validation/collect-skills.ts",
+    "validation:scan": "tsx validation/scan-all-skills.ts",
+    "validation:all": "pnpm validation:collect && pnpm validation:scan"
   },
   "devDependencies": {
     "vitest": "^3.0.0",

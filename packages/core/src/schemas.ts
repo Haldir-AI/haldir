@@ -5,6 +5,7 @@ import {
   SUPPORTED_INTEGRITY_VERSIONS,
   SUPPORTED_PERMISSIONS_VERSIONS,
   SUPPORTED_REVOCATION_VERSIONS,
+  SUPPORTED_VETTING_REPORT_VERSIONS,
   HALDIR_PAYLOAD_TYPE,
 } from './types.js';
 
@@ -34,6 +35,7 @@ export const AttestationSchema = z
     }),
     integrity_hash: HashStringSchema,
     permissions_hash: HashStringSchema,
+    vetting_report_hash: HashStringSchema.optional(),
     signed_at: z.string().datetime(),
     _critical: z.array(z.string()).optional(),
   })
@@ -93,4 +95,41 @@ export const RevocationListSchema = z.object({
     keyid: z.string().min(1),
     sig: z.string().min(1),
   }),
+});
+
+export const VettingFindingSchema = z.object({
+  severity: z.enum(['critical', 'high', 'medium', 'low']),
+  category: z.string().min(1).max(100),
+  pattern_id: z.string().max(100).optional(),
+  file: z.string().max(500).optional(),
+  line: z.number().int().positive().optional(),
+  column: z.number().int().nonnegative().optional(),
+  match: z.string().max(500).optional(),
+  context: z.string().max(1000).optional(),
+  message: z.string().min(1).max(1000),
+});
+
+export const VettingLayerResultSchema = z.object({
+  layer: z.number().int().positive().max(10),
+  name: z.string().min(1).max(50),
+  status: z.enum(['pass', 'flag', 'reject']),
+  duration_ms: z.number().nonnegative().max(3600000).optional(),
+  findings: z.array(VettingFindingSchema).max(1000),
+  summary: z
+    .object({
+      critical: z.number().int().nonnegative().max(10000),
+      high: z.number().int().nonnegative().max(10000),
+      medium: z.number().int().nonnegative().max(10000),
+      low: z.number().int().nonnegative().max(10000),
+    })
+    .optional(),
+});
+
+export const VettingReportSchema = z.object({
+  schema_version: z.enum(SUPPORTED_VETTING_REPORT_VERSIONS),
+  vetting_timestamp: z.string().datetime(),
+  pipeline_version: z.string().min(1).max(50),
+  layers: z.array(VettingLayerResultSchema).min(1).max(10),
+  overall_status: z.enum(['pass', 'flag', 'reject']),
+  publisher_note: z.string().max(5000).optional(),
 });

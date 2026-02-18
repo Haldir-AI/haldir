@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,6 +30,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit dependencies
+        run: pnpm audit --prod --audit-level=high
+        continue-on-error: true
+
       - name: Build packages
         run: pnpm build
 
@@ -45,3 +53,9 @@ jobs:
             echo "Run 'pnpm schemas' and commit the changes"
             exit 1
           fi
+
+      - name: CLI smoke test
+        if: matrix.node-version == 22
+        run: |
+          node packages/cli/dist/index.js --version
+          node packages/cli/dist/index.js --help

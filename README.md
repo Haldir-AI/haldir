@@ -1,12 +1,12 @@
 # Haldir
 
-Cryptographic signing, verification, and revocation for agent skills and MCP servers.
+**HTTPS for AI agents** — Cryptographic signing, verification, and revocation for agent skills and MCP servers.
 
 Named after the March-warden of Lothlorien — nothing enters without his inspection.
 
 ## The Problem
 
-Agent skills are distributed without integrity verification, publisher authentication, or revocation capability. In February 2026, the [ClawHavoc incident](https://koi.security) revealed 341 malicious skills (12% of a major public registry) deploying credential stealers, reverse shells, and prompt injection payloads. Independent analysis found prompt injection in 36% of skills across major registries.
+Agent skills are distributed without integrity verification, publisher authentication, or revocation capability. In February 2026, security researchers discovered 341 malicious skills (12% of ClawHub registry) deploying credential stealers, reverse shells, and prompt injection payloads. Independent analysis found prompt injection in 36% of skills across major registries.
 
 No existing agent framework or registry implements cryptographic signing at the skill package level.
 
@@ -19,7 +19,7 @@ my-skill/
 ├── SKILL.md
 ├── skill.js
 └── .vault/
-    ├── signature.json      # DSSE v1.0.0 envelope (Ed25519 signature)
+    ├── signature.json      # DSSE-derived envelope (Ed25519 signature, modified PAE)
     ├── attestation.json    # Signed metadata (canonical JSON, RFC 8785)
     ├── integrity.json      # SHA-256 hash of every file (allowlist)
     └── permissions.json    # Declared capabilities
@@ -236,7 +236,7 @@ Haldir runs 25 ordered checks. The first failure terminates verification (fail-f
 
 | Standard | Version | Usage |
 |----------|---------|-------|
-| [DSSE](https://github.com/secure-systems-lab/dsse) | v1.0.0 | Signature envelope format, PAE construction |
+| [DSSE](https://github.com/secure-systems-lab/dsse) | v1.0.0 (modified PAE) | Envelope format. PAE uses ASCII decimal lengths instead of INT64LE — not interoperable with generic DSSE verifiers. See [SPEC.md §PAE](docs/SPEC.md). |
 | [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) | JCS | Canonical JSON serialization |
 | [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) | Ed25519 | Digital signatures |
 | [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final) | SHA-256 | File integrity hashing |
@@ -249,6 +249,14 @@ Haldir runs 25 ordered checks. The first failure terminates verification (fail-f
 | `@haldir/core` | Crypto, `.vault/` envelope creation, verification engine |
 | `@haldir/cli` | Command-line tool |
 | `@haldir/sdk` | Verification SDK for agent platforms |
+| `@haldir/scanner` | Static analysis — threat pattern detection (Layer 1) |
+| `@haldir/auditor` | Dependency audit — pinning, CVEs, supply chain (Layer 2) |
+| `@haldir/sandbox` | Isolated execution — behavior monitoring (Layer 3) |
+| `@haldir/reviewer` | Dual-LLM semantic audit (Layer 4) |
+| `@haldir/pipeline` | 5-layer vetting orchestrator |
+| `@haldir/enforcer` | Runtime permission enforcement (Node.js + macOS sandbox) |
+| `@haldir/registry` | Registry API — submission, tiers, federation |
+| `@haldir/scheduler` | Periodic rescan pipeline |
 
 ## Current Trust Model (v0.1)
 
@@ -268,14 +276,14 @@ Haldir v0.1 supports two signing modes:
 
 **Dual-sign** — a publisher signs (authorship), then an authority co-signs (vetting passed). Consumers trust the authority key and don't need to know every publisher.
 
-There is no central registry yet. The [roadmap](docs/ROADMAP.md) covers the path to a vetting pipeline and public registry.
+A 5-layer vetting pipeline (static analysis, dependency audit, sandbox execution, dual-LLM review, pipeline orchestrator), runtime permission enforcer, and registry API are built and tested. See the [roadmap](docs/ROADMAP.md) for what's next.
 
 ## Development
 
 ```bash
 # Prerequisites
 node >= 20.0.0
-pnpm >= 8.0.0
+pnpm >= 9.0.0
 
 # Setup
 pnpm install
@@ -283,7 +291,7 @@ pnpm install
 # Build all packages
 pnpm build
 
-# Run all tests (149 unit + 7 CLI e2e)
+# Run all tests (687 across 44 test files)
 pnpm test
 
 # Run CLI test suite (7 built-in tests)

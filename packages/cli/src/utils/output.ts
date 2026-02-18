@@ -9,5 +9,6 @@ export function toCliOutput(result: VerifyResult): CLIOutput {
     errors: result.errors.map((e) => ({ code: e.code, message: e.message, ...(e.file ? { file: e.file } : {}) })),
     attestation: result.attestation ?? null,
     permissions: result.permissions ?? null,
+    vettingReport: result.vettingReport ?? null,
   };
 }

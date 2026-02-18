@@ -5,7 +5,7 @@ import { encodePAE } from './pae.js';
 import { sign as ed25519Sign, verify as ed25519Verify, hashData, deriveKeyId, base64urlEncode, base64urlDecode } from './crypto.js';
 import { checkFilesystem, hashDirectory } from './integrity.js';
 import { signWithSigstore, writeSigstoreBundle } from './sigstore.js';
-import { SignatureEnvelopeSchema } from './schemas.js';
+import { SignatureEnvelopeSchema, VettingReportSchema } from './schemas.js';
 import { VAULT_DIR, HALDIR_PAYLOAD_TYPE } from './types.js';
 import type {
   EnvelopeOptions,
@@ -15,12 +15,14 @@ import type {
   IntegrityManifest,
   Permissions,
   KeyRing,
+  VettingReport,
 } from './types.js';
 
 async function buildSkillMetadata(
   skillDir: string,
   skill: { name: string; version: string; type: string },
-  permissions?: Permissions['declared']
+  permissions?: Permissions['declared'],
+  vettingReport?: VettingReport
 ): Promise<{
   vaultDir: string;
   attestationBytes: Buffer;
@@ -62,12 +64,26 @@ async function buildSkillMetadata(
   const permissionsCanonical = canonicalizeToBuffer(permissionsObj);
   const permissionsHash = hashData(permissionsCanonical);
 
+  // Hash vetting report BEFORE creating attestation (if provided)
+  let vettingReportHash: string | undefined;
+  let vettingReportBytes: Buffer | undefined;
+  if (vettingReport) {
+    const result = VettingReportSchema.safeParse(vettingReport);
+    if (!result.success) {
+      throw new Error(`Invalid vetting report: ${result.error.message}`);
+    }
+    // Write as CANONICAL JSON (same as attestation/integrity) for deterministic hashing
+    vettingReportBytes = canonicalizeToBuffer(vettingReport);
+    vettingReportHash = hashData(vettingReportBytes);
+  }
+
   const integrityHash = hashData(integrityBytes);
   const attestationObj: Attestation = {
     schema_version: '1.0',
     skill,
     integrity_hash: integrityHash,
     permissions_hash: permissionsHash,
+    ...(vettingReportHash && { vetting_report_hash: vettingReportHash }),
     signed_at: new Date().toISOString(),
   };
   const attestationBytes = canonicalizeToBuffer(attestationObj);
@@ -77,6 +93,11 @@ async function buildSkillMetadata(
     join(vaultDir, 'permissions.json'),
     JSON.stringify(permissionsObj, null, 2) + '\n'
   );
+
+  // Write vetting report if provided (canonical JSON for hash verification)
+  if (vettingReportBytes) {
+    await writeFile(join(vaultDir, 'vetting-report.json'), vettingReportBytes);
+  }
 
   return { vaultDir, attestationBytes, permissionsObj };
 }
@@ -89,7 +110,8 @@ export async function createEnvelope(
   const { vaultDir, attestationBytes } = await buildSkillMetadata(
     skillDir,
     options.skill,
-    options.permissions
+    options.permissions,
+    options.vettingReport
   );
 
   const paeBuffer = encodePAE(HALDIR_PAYLOAD_TYPE, attestationBytes);
@@ -120,7 +142,8 @@ export async function createKeylessEnvelope(
   const { attestationBytes } = await buildSkillMetadata(
     skillDir,
     options.skill,
-    options.permissions
+    options.permissions,
+    options.vettingReport
   );
 
   const bundle = await signWithSigstore(attestationBytes, {
