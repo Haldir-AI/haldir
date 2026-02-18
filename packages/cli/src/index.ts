@@ -46,6 +46,7 @@ program
   .option('--name <name>', 'Skill name')
   .option('--skill-version <version>', 'Skill version')
   .option('--type <type>', 'Skill type (skill.md or mcp)')
+  .option('--vetting-report <path>', 'Path to vetting report JSON (transparency)')
   .action(async (dir: string, opts) => {
     try {
       await signCommand(dir, opts);
@@ -122,6 +123,11 @@ program
   .option('--severity <level>', 'Minimum severity to report (critical|high|medium|low)', 'low')
   .option('--json', 'Output as JSON')
   .option('--strict', 'Exit code 1 on any finding (not just critical)')
+  .option('--ast', 'Enable AST-based analysis for JS/TS files (confidence scoring)')
+  .option('--context', 'Enable context-aware scanning (test file separation, severity adjustment)')
+  .option('--registry <url>', 'Registry URL for pattern updates')
+  .option('--pattern-version <version>', 'Pin to specific pattern version (e.g. 1.0.0)')
+  .option('--offline', 'Skip registry check, use cache or built-in patterns')
   .action(async (dir: string, opts) => {
     try {
       await scanCommand(dir, opts);

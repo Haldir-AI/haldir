@@ -6,4 +6,12 @@ haldir.key
 haldir.pub
 haldir.keyid
 *.pem
-.keys/
+.keys/*
+!.keys/production/
+!.keys/production/haldir.pub
+!.keys/production/haldir.keyid
+.keys/production/haldir.key
+docs/POSITIONING.md
+40_SKILLS_PLAN.md
+TOP_40_VALIDATION_PLAN.md
+validation/

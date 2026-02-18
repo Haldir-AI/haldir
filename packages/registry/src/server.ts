@@ -9,10 +9,21 @@ import { publishersRouter } from './routes/publishers.js';
 import { revocationsRouter } from './routes/revocations.js';
 import { advisoriesRouter } from './routes/advisories.js';
 import { federationRouter } from './routes/federation.js';
+import { patternsRouter } from './routes/patterns.js';
+import { seedBuiltinPatterns } from './seed.js';
 
 export interface ServerConfig {
   store: RegistryStore;
   prefix?: string;
+  seedPatterns?: boolean;
+}
+
+export async function initServer(config: ServerConfig): Promise<express.Express> {
+  const app = createServer(config);
+  if (config.seedPatterns !== false) {
+    await seedBuiltinPatterns(config.store);
+  }
+  return app;
 }
 
 export function createServer(config: ServerConfig): express.Express {
@@ -35,6 +46,7 @@ export function createServer(config: ServerConfig): express.Express {
   app.use(`${prefix}/revocations`, auth, revocationsRouter(store));
   app.use(`${prefix}/advisories`, optionalAuth, advisoriesRouter(store));
   app.use(`${prefix}/federation`, federationRouter(store));
+  app.use(`${prefix}/scanner/patterns`, patternsRouter(store));
 
   app.get('/.well-known/haldir-revocations', async (_req, res) => {
     const advisories = await store.listAdvisories();

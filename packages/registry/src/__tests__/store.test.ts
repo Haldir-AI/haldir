@@ -239,4 +239,48 @@ describe('MemoryStore', () => {
       expect(result.total).toBe(2);
     });
   });
+
+  describe('pattern bundles', () => {
+    it('adds and retrieves a bundle', async () => {
+      const bundle = {
+        version: '1.0.0',
+        releasedAt: '2026-02-14T00:00:00Z',
+        patternCount: 2,
+        patterns: [
+          { id: 'p1', category: 'exfiltration' as const, severity: 'high' as const, name: 'P1', description: 'D1', regex: { source: 'foo', flags: '' }, fileExtensions: ['js'] },
+          { id: 'p2', category: 'obfuscation' as const, severity: 'medium' as const, name: 'P2', description: 'D2', regex: { source: 'bar', flags: 'i' }, fileExtensions: ['ts'] },
+        ],
+      };
+      await store.addPatternBundle(bundle);
+      const result = await store.getPatternBundle('1.0.0');
+      expect(result).toEqual(bundle);
+    });
+
+    it('returns null for unknown version', async () => {
+      const result = await store.getPatternBundle('9.9.9');
+      expect(result).toBeNull();
+    });
+
+    it('getLatest returns null when empty', async () => {
+      const result = await store.getLatestPatternBundle();
+      expect(result).toBeNull();
+    });
+
+    it('getLatest returns most recent by releasedAt', async () => {
+      await store.addPatternBundle({ version: '1.0.0', releasedAt: '2026-01-01T00:00:00Z', patternCount: 0, patterns: [] });
+      await store.addPatternBundle({ version: '2.0.0', releasedAt: '2026-02-01T00:00:00Z', patternCount: 0, patterns: [] });
+      await store.addPatternBundle({ version: '1.5.0', releasedAt: '2026-01-15T00:00:00Z', patternCount: 0, patterns: [] });
+      const latest = await store.getLatestPatternBundle();
+      expect(latest?.version).toBe('2.0.0');
+    });
+
+    it('listVersions returns all added versions', async () => {
+      await store.addPatternBundle({ version: '1.0.0', releasedAt: '2026-01-01T00:00:00Z', patternCount: 0, patterns: [] });
+      await store.addPatternBundle({ version: '2.0.0', releasedAt: '2026-02-01T00:00:00Z', patternCount: 0, patterns: [] });
+      const versions = await store.listPatternVersions();
+      expect(versions).toContain('1.0.0');
+      expect(versions).toContain('2.0.0');
+      expect(versions).toHaveLength(2);
+    });
+  });
 });

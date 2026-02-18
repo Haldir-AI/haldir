@@ -1,4 +1,4 @@
-export { createServer } from './server.js';
+export { createServer, initServer } from './server.js';
 export type { ServerConfig } from './server.js';
 
 export { MemoryStore } from './store/memory.js';
@@ -8,6 +8,9 @@ export { createAuthMiddleware, createOptionalAuthMiddleware, hashApiKey } from '
 export type { AuthContext } from './auth/types.js';
 
 export { computeTier, getVettingPath, getSkipLayers, shouldDemote } from './tiers.js';
+
+export { seedBuiltinPatterns } from './seed.js';
+export { patternsRouter } from './routes/patterns.js';
 
 export type {
   Publisher,

@@ -88,6 +88,9 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@20.19.33)(tsx@4.21.0)
 
   packages/core:
     dependencies:
@@ -165,6 +168,9 @@ importers:
       '@haldir/pipeline':
         specifier: workspace:*
         version: link:../pipeline
+      '@haldir/scanner':
+        specifier: workspace:*
+        version: link:../scanner
       express:
         specifier: ^5.0.1
         version: 5.2.1
@@ -220,6 +226,9 @@ importers:
 
   packages/scanner:
     dependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -230,9 +239,6 @@ importers:
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@20.19.33)(tsx@4.21.0)

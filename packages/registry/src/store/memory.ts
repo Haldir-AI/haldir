@@ -9,6 +9,7 @@ import type {
   SearchQuery,
   SearchResult,
 } from '../types.js';
+import type { PatternBundle } from '@haldir/scanner';
 
 export class MemoryStore implements RegistryStore {
   private publishers = new Map<string, Publisher>();
@@ -16,6 +17,8 @@ export class MemoryStore implements RegistryStore {
   private versions = new Map<string, SkillVersion>();
   private submissions = new Map<string, Submission>();
   private advisories = new Map<string, Advisory>();
+  private patternBundles = new Map<string, PatternBundle>();
+  private latestPatternVersion: string | null = null;
 
   private versionKey(name: string, version: string): string {
     return `${name}@${version}`;
@@ -146,5 +149,30 @@ export class MemoryStore implements RegistryStore {
 
   async createAdvisory(advisory: Advisory): Promise<void> {
     this.advisories.set(advisory.id, advisory);
+  }
+
+  async addPatternBundle(bundle: PatternBundle): Promise<void> {
+    this.patternBundles.set(bundle.version, bundle);
+    if (!this.latestPatternVersion) {
+      this.latestPatternVersion = bundle.version;
+    } else {
+      const current = this.patternBundles.get(this.latestPatternVersion);
+      if (!current || bundle.releasedAt > current.releasedAt) {
+        this.latestPatternVersion = bundle.version;
+      }
+    }
+  }
+
+  async getPatternBundle(version: string): Promise<PatternBundle | null> {
+    return this.patternBundles.get(version) ?? null;
+  }
+
+  async getLatestPatternBundle(): Promise<PatternBundle | null> {
+    if (!this.latestPatternVersion) return null;
+    return this.patternBundles.get(this.latestPatternVersion) ?? null;
+  }
+
+  async listPatternVersions(): Promise<string[]> {
+    return [...this.patternBundles.keys()];
   }
 }

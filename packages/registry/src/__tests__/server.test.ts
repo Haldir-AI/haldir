@@ -305,4 +305,50 @@ describe('Registry Server', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('GET /v1/scanner/patterns', () => {
+    it('returns 404 when no bundles seeded', async () => {
+      const res = await makeRequest(app, 'GET', '/v1/scanner/patterns');
+      expect(res.status).toBe(404);
+    });
+
+    it('returns latest bundle after seed', async () => {
+      await store.addPatternBundle({
+        version: '1.0.0',
+        releasedAt: '2026-02-14T00:00:00Z',
+        patternCount: 2,
+        patterns: [
+          { id: 'p1', category: 'exfiltration', severity: 'high', name: 'P1', description: 'D1', regex: { source: 'foo', flags: '' }, fileExtensions: ['js'] },
+          { id: 'p2', category: 'obfuscation', severity: 'medium', name: 'P2', description: 'D2', regex: { source: 'bar', flags: 'i' }, fileExtensions: ['ts'] },
+        ],
+      });
+      const res = await makeRequest(app, 'GET', '/v1/scanner/patterns');
+      expect(res.status).toBe(200);
+      expect(res.body.version).toBe('1.0.0');
+      expect(res.body.patternCount).toBe(2);
+      expect((res.body.patterns as unknown[]).length).toBe(2);
+    });
+
+    it('returns specific version', async () => {
+      await store.addPatternBundle({ version: '1.0.0', releasedAt: '2026-01-01T00:00:00Z', patternCount: 0, patterns: [] });
+      await store.addPatternBundle({ version: '2.0.0', releasedAt: '2026-02-01T00:00:00Z', patternCount: 0, patterns: [] });
+      const res = await makeRequest(app, 'GET', '/v1/scanner/patterns/1.0.0');
+      expect(res.status).toBe(200);
+      expect(res.body.version).toBe('1.0.0');
+    });
+
+    it('returns 404 for unknown version', async () => {
+      const res = await makeRequest(app, 'GET', '/v1/scanner/patterns/9.9.9');
+      expect(res.status).toBe(404);
+    });
+
+    it('lists available versions', async () => {
+      await store.addPatternBundle({ version: '1.0.0', releasedAt: '2026-01-01T00:00:00Z', patternCount: 0, patterns: [] });
+      await store.addPatternBundle({ version: '2.0.0', releasedAt: '2026-02-01T00:00:00Z', patternCount: 0, patterns: [] });
+      const res = await makeRequest(app, 'GET', '/v1/scanner/patterns/versions');
+      expect(res.status).toBe(200);
+      expect((res.body.versions as string[])).toContain('1.0.0');
+      expect((res.body.versions as string[])).toContain('2.0.0');
+    });
+  });
 });

@@ -7,6 +7,7 @@ import type {
   SearchQuery,
   SearchResult,
 } from '../types.js';
+import type { PatternBundle } from '@haldir/scanner';
 
 export interface RegistryStore {
   // Publishers
@@ -35,4 +36,10 @@ export interface RegistryStore {
   getAdvisory(id: string): Promise<Advisory | null>;
   listAdvisories(): Promise<Advisory[]>;
   createAdvisory(advisory: Advisory): Promise<void>;
+
+  // Pattern bundles
+  addPatternBundle(bundle: PatternBundle): Promise<void>;
+  getPatternBundle(version: string): Promise<PatternBundle | null>;
+  getLatestPatternBundle(): Promise<PatternBundle | null>;
+  listPatternVersions(): Promise<string[]>;
 }

@@ -15,12 +15,15 @@
   "bin": {
     "haldir": "./dist/index.js"
   },
+  "publishConfig": { "access": "public" },
   "files": ["dist"],
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "tsup"
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@haldir/core": "workspace:*",
@@ -34,6 +37,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
