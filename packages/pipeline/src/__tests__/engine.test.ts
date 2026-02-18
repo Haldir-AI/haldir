@@ -84,17 +84,32 @@ describe('vetSkill', () => {
     expect(result.layers.some(l => l.status === 'flag')).toBe(true);
   });
 
-  it('skips layers when configured', async () => {
+  it('skips non-mandatory layers when configured', async () => {
     await writeFile(join(tempDir, 'index.js'), 'console.log("ok");\n');
 
     const result = await vetSkill(tempDir, {
-      skipLayers: [2, 3, 4],
+      skipLayers: [3, 4],
+      auditor: { checkCves: false },
     });
 
-    const l2 = result.layers.find(l => l.layer === 2);
     const l3 = result.layers.find(l => l.layer === 3);
-    expect(l2?.status).toBe('skip');
+    const l4 = result.layers.find(l => l.layer === 4);
     expect(l3?.status).toBe('skip');
+    expect(l4?.status).toBe('skip');
+  });
+
+  it('refuses to skip mandatory layers (1, 2)', async () => {
+    await writeFile(join(tempDir, 'index.js'), 'console.log("ok");\n');
+
+    const result = await vetSkill(tempDir, {
+      skipLayers: [1, 2, 3, 4],
+      auditor: { checkCves: false },
+    });
+
+    const l1 = result.layers.find(l => l.layer === 1);
+    const l2 = result.layers.find(l => l.layer === 2);
+    expect(l1?.status).not.toBe('skip');
+    expect(l2?.status).not.toBe('skip');
   });
 
   it('runs all layers sequentially', async () => {
@@ -151,11 +166,36 @@ describe('vetSkill', () => {
     expect(l3?.status).toBe('flag');
   }, 10000);
 
-  it('skip all layers returns skip statuses', async () => {
+  it('layer errors are rejected by default (fail-closed)', async () => {
+    await writeFile(join(tempDir, 'index.js'), 'console.log("ok");\n');
+
     const result = await vetSkill(tempDir, {
-      skipLayers: [1, 2, 3, 4],
+      skipLayers: [3, 4],
+      auditor: { checkCves: false },
     });
 
-    expect(result.layers[0].status).toBe('skip');
+    const hasError = result.layers.some(l => l.status === 'error');
+    if (hasError) {
+      expect(result.status).toBe('rejected');
+    } else {
+      expect(result.status).toBe('approved');
+    }
+  });
+
+  it('treatErrorAsReject:false preserves error status', async () => {
+    await writeFile(join(tempDir, 'index.js'), 'console.log("ok");\n');
+
+    const result = await vetSkill(tempDir, {
+      skipLayers: [3, 4],
+      auditor: { checkCves: false },
+      treatErrorAsReject: false,
+    });
+
+    const hasError = result.layers.some(l => l.status === 'error');
+    if (hasError) {
+      expect(result.status).toBe('error');
+    } else {
+      expect(result.status).toBe('approved');
+    }
   });
 });

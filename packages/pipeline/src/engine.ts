@@ -16,8 +16,11 @@ export async function vetSkill(
 ): Promise<PipelineResult> {
   const start = performance.now();
   const layers: LayerResult[] = [];
-  const skipLayers = new Set(config?.skipLayers ?? []);
+  const MANDATORY_LAYERS = new Set([1, 2]);
+  const requestedSkips = config?.skipLayers ?? [];
+  const skipLayers = new Set(requestedSkips.filter(l => !MANDATORY_LAYERS.has(l)));
   const failFast = config?.failFast ?? true;
+  const failOnError = config?.treatErrorAsReject ?? true;
 
   let rejected = false;
   let rejectedAt: number | undefined;
@@ -36,12 +39,13 @@ export async function vetSkill(
       if (scan.status === 'reject') { rejected = true; rejectedAt = 1; }
     } catch (err) {
       layers.push({ layer: 1, name: LAYER_NAMES[0], status: 'error', duration_ms: elapsed(t), error: String(err) });
+      if (failOnError && !rejected) { rejected = true; rejectedAt = 1; }
     }
   } else {
     layers.push({ layer: 1, name: LAYER_NAMES[0], status: 'skip', duration_ms: 0 });
   }
 
-  if (rejected && failFast) return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review });
+  if (rejected && failFast) return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review }, undefined, failOnError);
 
   // Layer 2: Dependency Audit
   if (!skipLayers.has(2)) {
@@ -53,12 +57,13 @@ export async function vetSkill(
       if (audit.status === 'reject' && !rejected) { rejected = true; rejectedAt = 2; }
     } catch (err) {
       layers.push({ layer: 2, name: LAYER_NAMES[1], status: 'error', duration_ms: elapsed(t), error: String(err) });
+      if (failOnError && !rejected) { rejected = true; rejectedAt = 2; }
     }
   } else {
     layers.push({ layer: 2, name: LAYER_NAMES[1], status: 'skip', duration_ms: 0 });
   }
 
-  if (rejected && failFast) return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review });
+  if (rejected && failFast) return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review }, undefined, failOnError);
 
   // Layer 3: Sandbox Execution
   if (!skipLayers.has(3)) {
@@ -70,12 +75,13 @@ export async function vetSkill(
       if (sandbox.status === 'reject' && !rejected) { rejected = true; rejectedAt = 3; }
     } catch (err) {
       layers.push({ layer: 3, name: LAYER_NAMES[2], status: 'error', duration_ms: elapsed(t), error: String(err) });
+      if (failOnError && !rejected) { rejected = true; rejectedAt = 3; }
     }
   } else {
     layers.push({ layer: 3, name: LAYER_NAMES[2], status: 'skip', duration_ms: 0 });
   }
 
-  if (rejected && failFast) return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review });
+  if (rejected && failFast) return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review }, undefined, failOnError);
 
   // Layer 4: LLM Semantic Audit
   if (!skipLayers.has(4) && config?.reviewer) {
@@ -88,12 +94,13 @@ export async function vetSkill(
       if (review.status === 'reject' && !rejected) { rejected = true; rejectedAt = 4; }
     } catch (err) {
       layers.push({ layer: 4, name: LAYER_NAMES[3], status: 'error', duration_ms: elapsed(t), error: String(err) });
+      if (failOnError && !rejected) { rejected = true; rejectedAt = 4; }
     }
   } else {
     layers.push({ layer: 4, name: LAYER_NAMES[3], status: 'skip', duration_ms: 0 });
   }
 
-  return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review }, review?.score);
+  return finalize(start, layers, rejectedAt, { scan, audit, sandbox, review }, review?.score, failOnError);
 }
 
 function mapStatus(s: string): 'pass' | 'fail' | 'flag' {
@@ -110,12 +117,14 @@ function finalize(
   rejectedAt?: number,
   results?: { scan?: ScanResult; audit?: AuditResult; sandbox?: SandboxResult; review?: ReviewResult },
   score?: number,
+  failOnError = true,
 ): PipelineResult {
   const hasReject = layers.some(l => l.status === 'fail');
   const hasError = layers.some(l => l.status === 'error');
   const hasFlag = layers.some(l => l.status === 'flag');
 
   const status = hasReject ? 'rejected'
+    : (hasError && failOnError) ? 'rejected'
     : hasError ? 'error'
     : hasFlag ? 'amber'
     : 'approved';

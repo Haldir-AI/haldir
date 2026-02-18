@@ -221,8 +221,8 @@ export async function scanDirectory(
     }
 
     // AST analysis pass — semantic checks that regex cannot express.
-    // Opt-in: only runs when enableASTAnalysis is true.
-    if (config?.enableASTAnalysis && AST_EXTENSIONS.includes(file.extension)) {
+    const enableAST = config?.enableASTAnalysis ?? true;
+    if (enableAST && AST_EXTENSIONS.includes(file.extension)) {
       const fullContent = lines.join('\n');
       const astFindings = analyzeFileAST(fullContent, file.relativePath, file.extension);
       for (const af of astFindings) {

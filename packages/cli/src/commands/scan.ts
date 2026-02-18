@@ -62,7 +62,7 @@ export async function scanCommand(dir: string, opts: ScanCommandOptions): Promis
   const result = await scanDirectory(dir, {
     severityThreshold,
     patterns,
-    enableASTAnalysis: opts.ast ?? false,
+    enableASTAnalysis: opts.ast ?? true,
     enableContextAwareness: opts.context ?? false,
   });
 

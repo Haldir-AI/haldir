@@ -12,6 +12,8 @@ export interface PipelineConfig {
   reviewer?: ReviewConfig;
   skipLayers?: number[];
   failFast?: boolean;
+  /** Treat layer errors as rejections. Default: true (fail-closed). */
+  treatErrorAsReject?: boolean;
 }
 
 export interface LayerResult {

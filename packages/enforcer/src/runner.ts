@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { platform } from 'node:os';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -20,7 +21,16 @@ import { DEFAULT_TIMEOUT, DEFAULT_MAX_MEMORY } from './types.js';
 export async function loadPermissions(skillDir: string): Promise<PermissionsJson | null> {
   try {
     const raw = await readFile(join(skillDir, '.vault', 'permissions.json'), 'utf-8');
-    return JSON.parse(raw) as PermissionsJson;
+    const parsed = JSON.parse(raw) as PermissionsJson;
+
+    const attRaw = await readFile(join(skillDir, '.vault', 'attestation.json'), 'utf-8');
+    const attestation = JSON.parse(attRaw) as { permissions_hash?: string };
+    if (!attestation.permissions_hash) return null;
+
+    const actual = 'sha256:' + createHash('sha256').update(raw).digest('hex');
+    if (actual !== attestation.permissions_hash) return null;
+
+    return parsed;
   } catch {
     return null;
   }

@@ -107,8 +107,8 @@ export interface ScanConfig {
   // Declared capabilities from permissions.json (trusted source)
   declaredCapabilities?: string[];   // e.g., ['filesystem.read', 'docker.sock']
 
-  // AST-based analysis (opt-in)
-  enableASTAnalysis?: boolean;       // default: false
+  // AST-based analysis
+  enableASTAnalysis?: boolean;       // default: true
 }
 
 export interface ThreatPattern {

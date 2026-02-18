@@ -9,10 +9,6 @@ export function generateSandboxProfile(policy: PermissionsPolicy): string {
     '(version 1)',
     '(deny default)',
     '',
-    '; Allow process execution',
-    '(allow process-exec*)',
-    '(allow process-fork)',
-    '',
     '; Allow sysctl for Node.js runtime',
     '(allow sysctl-read)',
     '',
@@ -49,17 +45,23 @@ export function generateSandboxProfile(policy: PermissionsPolicy): string {
   rules.push('', '; Network');
   if (policy.network.type === 'all') {
     rules.push('(allow network*)');
-  } else if (policy.network.type === 'allowlist') {
-    rules.push('(allow network-outbound (remote tcp))');
-    rules.push('(allow network-bind (local tcp))');
+  } else if (policy.network.type === 'allowlist' && policy.network.domains?.length) {
     rules.push('(allow system-socket)');
+    for (const domain of policy.network.domains) {
+      rules.push(`(allow network-outbound (remote tcp "${escapeSbPath(domain)}"))`);
+    }
+  } else if (policy.network.type === 'allowlist') {
+    rules.push('; Allowlist with no domains — network denied');
   } else {
     rules.push('; Network denied (no rules added)');
   }
 
+  rules.push('', '; Process execution');
   if (policy.exec) {
-    rules.push('', '; Subprocess execution allowed');
     rules.push('(allow process-exec*)');
+    rules.push('(allow process-fork)');
+  } else {
+    rules.push('; Subprocess execution denied (no rules added)');
   }
 
   rules.push('');

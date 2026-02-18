@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { createHash } from 'node:crypto';
 import { mkdtemp, writeFile, mkdir, rm, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -25,19 +26,46 @@ describe('loadPermissions', () => {
     expect(await loadPermissions(tempDir)).toBeNull();
   });
 
-  it('loads valid permissions.json', async () => {
+  it('loads valid permissions.json with matching attestation hash', async () => {
     await mkdir(join(tempDir, '.vault'));
-    await writeFile(join(tempDir, '.vault', 'permissions.json'), JSON.stringify({
+    const permsRaw = JSON.stringify({
       schema_version: '1.0',
       declared: {
         filesystem: { read: ['./data'] },
         network: 'none',
       },
+    });
+    const hash = 'sha256:' + createHash('sha256').update(permsRaw).digest('hex');
+    await writeFile(join(tempDir, '.vault', 'permissions.json'), permsRaw);
+    await writeFile(join(tempDir, '.vault', 'attestation.json'), JSON.stringify({
+      permissions_hash: hash,
     }));
 
     const perms = await loadPermissions(tempDir);
     expect(perms).not.toBeNull();
     expect(perms!.declared?.filesystem?.read).toEqual(['./data']);
+  });
+
+  it('returns null when attestation hash does not match', async () => {
+    await mkdir(join(tempDir, '.vault'));
+    await writeFile(join(tempDir, '.vault', 'permissions.json'), JSON.stringify({
+      declared: { filesystem: { read: ['./data'] } },
+    }));
+    await writeFile(join(tempDir, '.vault', 'attestation.json'), JSON.stringify({
+      permissions_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
+    }));
+
+    expect(await loadPermissions(tempDir)).toBeNull();
+  });
+
+  it('returns null when attestation missing permissions_hash', async () => {
+    await mkdir(join(tempDir, '.vault'));
+    await writeFile(join(tempDir, '.vault', 'permissions.json'), JSON.stringify({
+      declared: { filesystem: { read: ['./data'] } },
+    }));
+    await writeFile(join(tempDir, '.vault', 'attestation.json'), JSON.stringify({}));
+
+    expect(await loadPermissions(tempDir)).toBeNull();
   });
 });
 
