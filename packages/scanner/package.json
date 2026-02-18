@@ -27,6 +27,7 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "publishConfig": { "access": "public" },
   "files": ["dist"],
   "engines": {
     "node": ">=20.0.0"
@@ -38,6 +39,12 @@
   },
   "dependencies": {
     "zod": "^3.24.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": { "optional": true }
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
