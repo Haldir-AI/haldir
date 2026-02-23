@@ -1,0 +1,137 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate NPM_TOKEN
+        run: |
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "::error::NPM_TOKEN secret is not set."
+            echo "Go to https://github.com/Haldir-AI/haldir/settings/secrets/actions"
+            echo "Add a secret named NPM_TOKEN with a granular npm access token"
+            echo "that has read+write permissions on the @haldir scope."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package versions match tag
+        run: |
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          MISMATCHED=""
+          for pkg in packages/*/package.json; do
+            PKG_VERSION=$(node -p "require('./$pkg').version")
+            PKG_NAME=$(node -p "require('./$pkg').name")
+            if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+              MISMATCHED="$MISMATCHED\n  $PKG_NAME: $PKG_VERSION (expected $TAG_VERSION)"
+            fi
+          done
+          if [ -n "$MISMATCHED" ]; then
+            echo "::error::Package versions do not match tag v$TAG_VERSION:$MISMATCHED"
+            exit 1
+          fi
+          echo "All packages at v$TAG_VERSION"
+
+      # Layer 0: no internal deps
+      - name: 'Publish layer 0: core, scanner, auditor, reviewer, sandbox, enforcer, scheduler'
+        run: |
+          LAYER_0="core scanner auditor reviewer sandbox enforcer scheduler"
+          for pkg in $LAYER_0; do
+            PKG_NAME="@haldir/$pkg"
+            VERSION="${{ steps.version.outputs.version }}"
+            if npm view "$PKG_NAME@$VERSION" version 2>/dev/null; then
+              echo "⏭ $PKG_NAME@$VERSION already published, skipping"
+            else
+              echo "📦 Publishing $PKG_NAME@$VERSION"
+              (cd "packages/$pkg" && npm publish --provenance --access public)
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Layer 1: depends on layer 0
+      - name: 'Publish layer 1: sdk, pipeline, registry'
+        run: |
+          LAYER_1="sdk pipeline registry"
+          for pkg in $LAYER_1; do
+            PKG_NAME="@haldir/$pkg"
+            VERSION="${{ steps.version.outputs.version }}"
+            if npm view "$PKG_NAME@$VERSION" version 2>/dev/null; then
+              echo "⏭ $PKG_NAME@$VERSION already published, skipping"
+            else
+              echo "📦 Publishing $PKG_NAME@$VERSION"
+              (cd "packages/$pkg" && npm publish --provenance --access public)
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Layer 2: depends on layer 1
+      - name: 'Publish layer 2: cli'
+        run: |
+          PKG_NAME="@haldir/cli"
+          VERSION="${{ steps.version.outputs.version }}"
+          if npm view "$PKG_NAME@$VERSION" version 2>/dev/null; then
+            echo "⏭ $PKG_NAME@$VERSION already published, skipping"
+          else
+            echo "📦 Publishing $PKG_NAME@$VERSION"
+            (cd "packages/cli" && npm publish --provenance --access public)
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify all packages published
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ALL_GOOD=true
+          for pkg in core scanner auditor reviewer sandbox enforcer scheduler sdk pipeline registry cli; do
+            PUBLISHED=$(npm view "@haldir/$pkg@$VERSION" version 2>/dev/null || echo "NOT_FOUND")
+            if [ "$PUBLISHED" = "$VERSION" ]; then
+              echo "✅ @haldir/$pkg@$VERSION"
+            else
+              echo "❌ @haldir/$pkg@$VERSION — got: $PUBLISHED"
+              ALL_GOOD=false
+            fi
+          done
+          if [ "$ALL_GOOD" = false ]; then
+            echo "::error::Some packages failed to publish"
+            exit 1
+          fi
+          echo "All 11 packages published successfully"
