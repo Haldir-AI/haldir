@@ -1,6 +1,6 @@
 {
   "name": "@haldir/scheduler",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Haldir scheduler — periodic rescan pipeline for published skills",
   "license": "Apache-2.0",
   "author": "Haldir AI <oss@haldir.ai>",
@@ -10,7 +10,14 @@
     "url": "https://github.com/haldir-ai/haldir.git",
     "directory": "packages/scheduler"
   },
-  "keywords": ["haldir", "scheduler", "agent", "security", "rescan", "skills"],
+  "keywords": [
+    "haldir",
+    "scheduler",
+    "agent",
+    "security",
+    "rescan",
+    "skills"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -27,8 +34,12 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "publishConfig": { "access": "public" },
-  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20.0.0"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@haldir/enforcer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Haldir enforcer — runtime permission enforcement via OS-level sandboxing",
   "license": "Apache-2.0",
   "author": "Haldir AI <oss@haldir.ai>",
@@ -10,7 +10,15 @@
     "url": "https://github.com/haldir-ai/haldir.git",
     "directory": "packages/enforcer"
   },
-  "keywords": ["haldir", "enforcer", "agent", "security", "permissions", "sandbox", "skills"],
+  "keywords": [
+    "haldir",
+    "enforcer",
+    "agent",
+    "security",
+    "permissions",
+    "sandbox",
+    "skills"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -27,8 +35,12 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "publishConfig": { "access": "public" },
-  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20.0.0"
   },
