@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
+  assertSupportedNode,
   createEnvelope,
   createKeylessEnvelope,
   appendSignature,
@@ -11,6 +12,7 @@ import {
 
 async function run(): Promise<void> {
   try {
+    assertSupportedNode();
     const skillDir = core.getInput('skill-dir', { required: true });
     const mode = core.getInput('mode') || 'keyless';
     const skillName = core.getInput('skill-name', { required: true });

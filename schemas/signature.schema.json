@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
     "schema_version": {
@@ -16,6 +17,7 @@
       "minLength": 1
     },
     "signatures": {
+      "minItems": 1,
       "type": "array",
       "items": {
         "type": "object",
@@ -34,8 +36,7 @@
           "sig"
         ],
         "additionalProperties": false
-      },
-      "minItems": 1
+      }
     }
   },
   "required": [
@@ -45,7 +46,6 @@
     "signatures"
   ],
   "additionalProperties": false,
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://haldir.ai/schemas/signature.schema.json",
   "title": "ASAF signature"
 }

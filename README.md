@@ -282,8 +282,12 @@ A 5-layer vetting pipeline (static analysis, dependency audit, sandbox execution
 
 ```bash
 # Prerequisites
-node >= 20.0.0
-pnpm >= 9.0.0
+# Node 22.23.4+, 24.22.1+, or 26.12.1+
+# .nvmrc and .node-version track the floating 24 major (current LTS).
+# Node 20 is unsupported: CVE-2026-111497 is never fixed on that line.
+# pnpm >= 12.0.0
+node >= 22.23.4
+pnpm >= 12.0.0
 
 # Setup
 pnpm install
@@ -316,7 +320,7 @@ Haldir is the reference implementation.
 - **Schema version gates** on every parsed file
 - **Clock skew tolerance** (300s) on all timestamp comparisons
 - **Canonical JSON** (RFC 8785) eliminates serialization ambiguity
-- **canonicalize** npm pinned to exact version with compatibility tests
+- **canonicalize** minimum `^5.1.0` (RFC 8785). The lockfile records the release covered by compatibility tests; re-run those tests before a bump
 
 To report a security vulnerability, please email security@haldir.ai.
 

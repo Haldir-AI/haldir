@@ -1,5 +1,5 @@
 import { writeFileSync, mkdirSync } from 'fs';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import {
   SignatureEnvelopeSchema,
   AttestationSchema,
@@ -20,10 +20,11 @@ const schemas = {
 };
 
 for (const [filename, zodSchema] of Object.entries(schemas)) {
-  const jsonSchema = zodToJsonSchema(zodSchema, {
-    $refStrategy: 'none',
-    target: 'jsonSchema2020-12',
-  });
+  const jsonSchema = z.toJSONSchema(zodSchema) as {
+    $schema?: string;
+    $id?: string;
+    title?: string;
+  };
 
   // Add spec-specific metadata
   jsonSchema.$schema = 'https://json-schema.org/draft/2020-12/schema';

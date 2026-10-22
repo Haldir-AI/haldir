@@ -29,15 +29,22 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 12
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version: 24.x
+          check-latest: true
+          cache: pnpm
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Enforce Node security floor
+        run: node scripts/check-node-floor.mjs
+
+      - name: Enforce pnpm security floor
+        run: node scripts/check-pnpm-floor.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

@@ -1,3 +1,4 @@
+import { assertSupportedNode } from '@haldir/core';
 import { Command } from 'commander';
 import { keygenCommand } from './commands/keygen.js';
 import { signCommand } from './commands/sign.js';
@@ -212,4 +213,5 @@ program
     }
   });
 
+assertSupportedNode();
 program.parse();

@@ -15,9 +15,10 @@ describe('buildNodePermissionArgs', () => {
     },
   };
 
-  it('adds --experimental-permission flag', () => {
+  it('adds --permission flag', () => {
     const result = buildNodePermissionArgs(basePolicy, 'node', ['index.js'], {});
-    expect(result.env.NODE_OPTIONS).toContain('--experimental-permission');
+    expect(result.env.NODE_OPTIONS).toContain('--permission');
+    expect(result.env.NODE_OPTIONS).not.toContain('--experimental-permission');
   });
 
   it('includes declared read paths and system paths in --allow-fs-read', () => {

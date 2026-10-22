@@ -1,10 +1,13 @@
-import { dirname } from 'node:path';
+import { basename, dirname } from 'node:path';
 import type { PermissionsPolicy, SpawnPolicy } from './types.js';
 
 export function getNodeSystemPaths(): string[] {
   const paths: string[] = [];
-  const nodeDir = dirname(dirname(process.execPath));
-  paths.push(nodeDir);
+  const execDir = dirname(process.execPath);
+  // Official installs are <prefix>/bin/node. Walking two levels up from a
+  // binary that is not in bin/ can land on "/" and allow every read.
+  const installPrefix = basename(execDir) === 'bin' ? dirname(execDir) : execDir;
+  paths.push(installPrefix);
   if (process.platform === 'darwin') {
     paths.push('/usr/lib/libSystem*', '/usr/local/lib/node_modules', '/etc/ssl/certs', '/private/var/folders');
   } else if (process.platform === 'linux') {
@@ -19,7 +22,8 @@ export function buildNodePermissionArgs(
   args: string[],
   env: Record<string, string>,
 ): SpawnPolicy {
-  const nodeArgs: string[] = ['--experimental-permission'];
+  // Stable since Node 22.13. Node 24 rejects --experimental-permission in NODE_OPTIONS.
+  const nodeArgs: string[] = ['--permission'];
 
   const systemPaths = getNodeSystemPaths();
   const readPaths = [...new Set([...policy.filesystem.read, ...systemPaths])];
@@ -52,7 +56,7 @@ export function buildNodePermissionArgs(
     backend: 'node-permissions',
     enforced: {
       filesystem: true,
-      network: false, // Node.js --experimental-permission doesn't support network enforcement yet
+      network: false, // Node's permission model does not enforce network yet
       exec: true,
     },
   };

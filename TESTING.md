@@ -226,7 +226,7 @@ The CI workflow (`.github/workflows/ci.yml`) runs:
 4. `pnpm test` (unit tests)
 5. `pnpm schemas` (validate schema sync)
 
-Tested on Node 20 and 22.
+Tested on Node 22.x and 24.x. CI installs the latest patch on each line and fails if it is below 22.23.4 or 24.22.1.
 
 ## Writing Custom Tests
 

@@ -743,9 +743,9 @@ Ed25519 private keys MUST be protected. Recommended practices:
 
 The RFC 8785 canonicalizer library is a critical dependency. If it produces different output for the same input, signatures will fail to verify. Implementations MUST:
 
-- Pin the canonicalizer to an exact version (not a range).
+- Declare a minimum canonicalizer version. Record the tested release in the lockfile. Do not use an exact pin that blocks a tested security update.
 - Include compatibility tests against RFC 8785 test vectors.
-- Re-run compatibility tests before accepting library version bumps.
+- Re-run compatibility tests before accepting a canonicalizer bump.
 
 ### 10.5 Schema Version as Security Boundary
 
@@ -921,17 +921,17 @@ The scanner uses pattern-based (regex) detection with a targeted multiline pass.
 
 ### C.3 Runtime Enforcement
 
-Runtime permission enforcement relies on Node.js v23+ `--experimental-permission` flags.
+Runtime permission enforcement uses Node.js `--permission`, passed through `NODE_OPTIONS`. That flag has been stable since Node 22.13. Node 24 rejects the older `--experimental-permission` flag in `NODE_OPTIONS`.
 
 **Constraints:**
-- **Node.js v23+ required.** Older Node.js versions have no permission model; enforcement is not available.
+- **Patched Node required.** Enforcement needs Node 22.23.4+, 24.22.1+, or 26.12.1+. Older lines, including Node 20, are unsupported.
 - **TOCTOU vulnerability.** Files can be modified between scan time and runtime. Integrity verification via `.vault/integrity.json` mitigates this but is not enforced at runtime by default.
 - **No Linux Landlock integration yet.** The permission model is Node.js-level, not kernel-level. A compromised Node.js runtime can bypass it.
 - **macOS-specific:** `/var` requires explicit `--allow-fs-read` due to `/private/var` symlink.
 
 ### C.4 Sigstore Integration
 
-The `extractSignerInfo()` function navigates the internal structure of sigstore's verification result object (tested against sigstore v4.x). If the sigstore library changes its return type in future versions, identity extraction may fail safely to `identity: 'unknown'`, which rejects verification. This fails safe but may produce confusing error messages.
+The `extractSignerInfo()` function navigates the internal structure of sigstore's verification result object (tested against sigstore v5.x). If the sigstore library changes its return type in future versions, identity extraction may fail safely to `identity: 'unknown'`, which rejects verification. This fails safe but may produce confusing error messages.
 
 ### C.5 Platform Support
 

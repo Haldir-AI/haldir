@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { RescanScheduler } from '../scheduler.js';
 import { MemoryRescanStore } from '../store.js';
 import { DEFAULT_POLICY } from '../policy.js';
@@ -6,9 +6,9 @@ import type { SkillRecord, RescanResult, SchedulerConfig } from '../types.js';
 
 describe('RescanScheduler', () => {
   let store: MemoryRescanStore;
-  let onRescan: ReturnType<typeof vi.fn>;
-  let onRevoke: ReturnType<typeof vi.fn>;
-  let onAdvisory: ReturnType<typeof vi.fn>;
+  let onRescan: Mock<(skill: SkillRecord) => Promise<RescanResult>>;
+  let onRevoke: Mock<(skill: SkillRecord, result: RescanResult) => Promise<void>>;
+  let onAdvisory: Mock<(skill: SkillRecord, result: RescanResult) => Promise<void>>;
   let scheduler: RescanScheduler;
 
   beforeEach(() => {
@@ -18,8 +18,8 @@ describe('RescanScheduler', () => {
       trustScore: 95,
       action: 'none',
     });
-    onRevoke = vi.fn().mockResolvedValue(undefined);
-    onAdvisory = vi.fn().mockResolvedValue(undefined);
+    onRevoke = vi.fn<(skill: SkillRecord, result: RescanResult) => Promise<void>>().mockResolvedValue(undefined);
+    onAdvisory = vi.fn<(skill: SkillRecord, result: RescanResult) => Promise<void>>().mockResolvedValue(undefined);
     scheduler = new RescanScheduler({
       store,
       policy: DEFAULT_POLICY,
