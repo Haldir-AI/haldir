@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { dirname } from 'node:path';
 import type { ProcessOutput, SandboxConfig, SandboxViolation } from './types.js';
 import { DEFAULT_TIMEOUT, DEFAULT_MAX_MEMORY } from './types.js';
 
@@ -129,7 +130,9 @@ function safeEnv(): Record<string, string> {
     if (process.env[key]) safe[key] = process.env[key]!;
   }
   // Always set a minimal PATH to system locations only
-  safe.PATH = '/usr/bin:/bin:/usr/local/bin';
+  // The Node install directory is included so skill entrypoints can run the
+  // same runtime. PATH stays limited to that directory plus system bins.
+  safe.PATH = [dirname(process.execPath), '/usr/bin', '/bin', '/usr/local/bin'].join(':');
   return safe;
 }
 

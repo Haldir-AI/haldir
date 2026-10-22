@@ -8,12 +8,15 @@
     "build": "ncc build src/main.ts -o dist --source-map --license licenses.txt"
   },
   "dependencies": {
-    "@actions/core": "^3.0.0",
+    "@actions/core": "^3.0.1",
     "@haldir/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@vercel/ncc": "^0.38.1",
-    "typescript": "^5.7.0"
+    "@types/node": "^24.0.0",
+    "@vercel/ncc": "^0.45.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1"
   }
 }

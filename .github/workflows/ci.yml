@@ -14,25 +14,31 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: ['22.x', '24.x']
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 12
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
+          check-latest: true
+          cache: pnpm
+
+      - name: Enforce Node security floor
+        run: node scripts/check-node-floor.mjs
+
+      - name: Enforce pnpm security floor
+        run: node scripts/check-pnpm-floor.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Audit dependencies
-        run: pnpm audit --prod --audit-level=high
-        continue-on-error: true
+        run: pnpm audit --audit-level=high
 
       - name: Build packages
         run: pnpm build
@@ -49,13 +55,12 @@ jobs:
       - name: Check schema sync
         run: |
           if ! git diff --exit-code schemas/; then
-            echo "❌ Generated schemas differ from committed versions"
+            echo "Generated schemas differ from committed versions"
             echo "Run 'pnpm schemas' and commit the changes"
             exit 1
           fi
 
       - name: CLI smoke test
-        if: matrix.node-version == 22
         run: |
           node packages/cli/dist/index.js --version
           node packages/cli/dist/index.js --help

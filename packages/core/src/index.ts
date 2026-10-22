@@ -1,6 +1,7 @@
 export * from './types.js';
 export * from './schemas.js';
 export { canonicalize, canonicalizeToBuffer } from './canonical.js';
+export { assertSupportedNode } from './node-floor.js';
 export { encodePAE } from './pae.js';
 export {
   generateKeyPair,

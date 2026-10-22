@@ -743,9 +743,9 @@ Ed25519 private keys MUST be protected. Recommended practices:
 
 The RFC 8785 canonicalizer library is a critical dependency. If it produces different output for the same input, signatures will fail to verify. Implementations MUST:
 
-- Pin the canonicalizer to an exact version (not a range).
+- Declare a minimum canonicalizer version. Record the tested release in the lockfile. Do not use an exact pin that blocks a tested security update.
 - Include compatibility tests against RFC 8785 test vectors.
-- Re-run compatibility tests before accepting library version bumps.
+- Re-run compatibility tests before accepting a canonicalizer bump.
 
 ### 10.5 Schema Version as Security Boundary
 

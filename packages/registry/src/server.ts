@@ -1,3 +1,4 @@
+import { assertSupportedNode } from '@haldir/core';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import type { RegistryStore } from './store/types.js';
@@ -27,6 +28,7 @@ export async function initServer(config: ServerConfig): Promise<express.Express>
 }
 
 export function createServer(config: ServerConfig): express.Express {
+  assertSupportedNode();
   const { store, prefix = '/v1' } = config;
   const app = express();
   const auth = createAuthMiddleware(store);

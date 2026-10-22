@@ -2,6 +2,10 @@
 
 GitHub Action to sign agent skills with Haldir. Creates a `.vault/` security envelope with cryptographic signatures, integrity hashes, and permission declarations.
 
+## Runtime
+
+The action runs on the GitHub Actions `node24` runtime. It refuses to sign unless that runtime is Node 24.22.1 or newer (22.23.4+ and 26.12.1+ also pass the same floor). Node 20 is not used: CVE-2026-111497 is never fixed there, and the October 2026 TLS and CA fixes are not backported.
+
 ## Usage
 
 ### Keyless Signing (Sigstore)

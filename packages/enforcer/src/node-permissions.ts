@@ -1,10 +1,13 @@
-import { dirname } from 'node:path';
+import { basename, dirname } from 'node:path';
 import type { PermissionsPolicy, SpawnPolicy } from './types.js';
 
 export function getNodeSystemPaths(): string[] {
   const paths: string[] = [];
-  const nodeDir = dirname(dirname(process.execPath));
-  paths.push(nodeDir);
+  const execDir = dirname(process.execPath);
+  // Official installs are <prefix>/bin/node. Walking two levels up from a
+  // binary that is not in bin/ can land on "/" and allow every read.
+  const installPrefix = basename(execDir) === 'bin' ? dirname(execDir) : execDir;
+  paths.push(installPrefix);
   if (process.platform === 'darwin') {
     paths.push('/usr/lib/libSystem*', '/usr/local/lib/node_modules', '/etc/ssl/certs', '/private/var/folders');
   } else if (process.platform === 'linux') {

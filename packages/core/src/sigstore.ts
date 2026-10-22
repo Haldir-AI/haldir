@@ -98,7 +98,7 @@ export async function hasSigstoreBundle(skillDir: string): Promise<boolean> {
   }
 }
 
-// Fragile: walks sigstore's internal signer structure (tested against sigstore v4.x).
+// Fragile: walks sigstore's internal signer structure (tested against sigstore v5.x).
 // Falls safe to identity='unknown' if structure changes, which rejects verification.
 // If sigstore updates break this, check their VerificationResult type.
 function extractSignerInfo(signer: unknown): SigstoreSignerInfo {

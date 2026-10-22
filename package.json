@@ -11,13 +11,14 @@
     "url": "https://github.com/haldir-ai/haldir.git"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1",
+    "pnpm": ">=12.0.0"
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "test": "npx vitest run",
-    "test:watch": "npx vitest",
-    "test:e2e": "npx vitest run e2e",
+    "build": "node scripts/check-node-floor.mjs && node scripts/check-pnpm-floor.mjs && pnpm -r build",
+    "test": "node scripts/check-node-floor.mjs && pnpm exec vitest run",
+    "test:watch": "pnpm exec vitest",
+    "test:e2e": "pnpm exec vitest run e2e",
     "test:cli": "pnpm build && node packages/cli/dist/index.js test",
     "lint": "pnpm -r exec tsc --noEmit",
     "schemas": "tsx scripts/generate-schemas.ts",
@@ -27,14 +28,9 @@
     "validation:all": "pnpm validation:collect && pnpm validation:scan"
   },
   "devDependencies": {
-    "vitest": "^3.0.0",
-    "tsx": "^4.7.0",
-    "zod-to-json-schema": "^3.22.4",
-    "rimraf": "^6.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
+    "vitest": "^5.0.5",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7",
+    "rimraf": "^6.1.3"
   }
 }
