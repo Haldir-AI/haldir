@@ -7,7 +7,8 @@ export function buildLinuxLandlockArgs(
   args: string[],
   env: Record<string, string>,
 ): SpawnPolicy {
-  const nodeArgs: string[] = ['--experimental-permission'];
+  // Stable since Node 22.13. Node 24 rejects --experimental-permission in NODE_OPTIONS.
+  const nodeArgs: string[] = ['--permission'];
 
   const systemPaths = getNodeSystemPaths();
   const readPaths = [...new Set([...policy.filesystem.read, ...systemPaths])];
