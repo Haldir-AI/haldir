@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64, eregion]
     steps:
       - name: Validate NPM_TOKEN
         run: |
