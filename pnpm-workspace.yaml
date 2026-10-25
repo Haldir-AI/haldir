@@ -5,12 +5,14 @@ packages:
 allowBuilds:
   esbuild: true
 
-# pnpm 12 delays new releases by a day. Security floors have to install the day
-# they publish, and this repo does not keep an exact-version exception list.
-minimumReleaseAge: 0
+# Delay new dependency releases by three days. Update committed lockfiles only
+# after the release age gate admits the selected versions.
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
 
 # Minimum floors for transitive advisories. Caret ranges, not exact pins.
 overrides:
+  "body-parser": "^2.4.0"
   "esbuild": "^0.28.2"
   "http-cache-semantics": "^4.3.0"
   "ip-address": "^10.7.4"
